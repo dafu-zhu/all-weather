@@ -470,3 +470,196 @@ class AllWeatherV3:
         }
 
         return results
+
+
+class AllWeatherV3_1:
+    """
+    All Weather Strategy v3.1 - Fixed Risk Parity with Return Optimization
+
+    Fixes from v3.0:
+    1. Longer-term return estimates (EWMA 252 days = 1 year)
+    2. Concentration limit (max 35% per asset)
+    3. Lower lambda (0.2 = 80% risk parity focus)
+    4. Stricter crisis detection (3/3 signals required)
+    5. Removed volatility targeting (mathematically flawed for long-only)
+    """
+
+    def __init__(
+        self,
+        prices: pd.DataFrame,
+        initial_capital: float = 1_000_000,
+        rebalance_freq: str = 'MS',
+        lookback: int = 100,
+        commission_rate: float = 0.0003,
+        min_stock_alloc: float = 0.60,
+        max_bond_alloc: float = 0.35,
+        max_single_asset: float = 0.35,
+        balance_environments: bool = True,
+        use_return_expectations: bool = True,
+        use_depression_gauge: bool = True,
+        lambda_sharpe: float = 0.2,
+        ewma_span: int = 252
+    ):
+        """
+        Initialize v3.1 strategy.
+
+        Args:
+            prices: DataFrame of ETF prices
+            initial_capital: Starting capital
+            rebalance_freq: 'MS' for monthly (default)
+            lookback: Days for covariance calculation (default 100)
+            commission_rate: Transaction cost (default 0.03%)
+            min_stock_alloc: Minimum total stock allocation (default 60%)
+            max_bond_alloc: Maximum total bond allocation (default 35%)
+            max_single_asset: Maximum per-asset allocation (default 35%)
+            balance_environments: Whether to balance risk across environments (default True)
+            use_return_expectations: Whether to optimize for Sharpe ratio (default True)
+            use_depression_gauge: Whether to use crisis detection (default True)
+            lambda_sharpe: Weight on Sharpe vs risk parity (0-1, default 0.2)
+            ewma_span: EWMA span for expected returns (default 252 = 1 year)
+        """
+        self.prices = prices
+        self.initial_capital = initial_capital
+        self.rebalance_freq = rebalance_freq
+        self.lookback = lookback
+        self.commission_rate = commission_rate
+        self.min_stock_alloc = min_stock_alloc
+        self.max_bond_alloc = max_bond_alloc
+        self.max_single_asset = max_single_asset
+        self.balance_environments = balance_environments
+        self.use_return_expectations = use_return_expectations
+        self.use_depression_gauge = use_depression_gauge
+        self.lambda_sharpe = lambda_sharpe
+        self.ewma_span = ewma_span
+        self.portfolio = Portfolio(initial_capital, commission_rate)
+
+        # Track crisis state
+        self.in_crisis = False
+        self.crisis_history = []
+
+    def run_backtest(self, start_date=None, end_date=None, verbose=True):
+        """Run backtest with v3.1 improvements."""
+        from src.optimizer import optimize_weights_v3_1, optimize_weights_constrained
+        from src.depression_gauge import detect_crisis, get_safe_portfolio_weights
+
+        if start_date is None:
+            start_date = self.prices.index[self.lookback]
+        else:
+            start_date = pd.Timestamp(start_date)
+
+        if end_date is None:
+            end_date = self.prices.index[-1]
+        else:
+            end_date = pd.Timestamp(end_date)
+
+        backtest_prices = self.prices.loc[:end_date].copy()
+        rebalance_dates = backtest_prices.loc[start_date:end_date].resample(
+            self.rebalance_freq
+        ).first().index
+
+        if verbose:
+            print(f"Backtest: {start_date.date()} to {end_date.date()}")
+            print(f"Rebalances: {len(rebalance_dates)}")
+            print(f"Lambda: {self.lambda_sharpe:.2f}")
+            print(f"EWMA Span: {self.ewma_span} days")
+            print(f"Max Single Asset: {self.max_single_asset:.0%}")
+            print(f"Environment Balancing: {self.balance_environments}")
+            print(f"Return Optimization: {self.use_return_expectations}")
+            print(f"Depression Gauge: {self.use_depression_gauge} (3/3 signals)")
+
+        equity_curve = []
+        dates = []
+        weights_history = []
+        crisis_dates = []
+
+        for date in backtest_prices.loc[start_date:end_date].index:
+            current_prices = backtest_prices.loc[date]
+            portfolio_value = self.portfolio.get_value(current_prices)
+            equity_curve.append(portfolio_value)
+            dates.append(date)
+
+            if date in rebalance_dates:
+                hist_start_idx = backtest_prices.index.get_loc(date) - self.lookback
+                if hist_start_idx < 0:
+                    continue
+
+                hist_returns = backtest_prices.iloc[
+                    hist_start_idx:backtest_prices.index.get_loc(date)
+                ].pct_change().dropna()
+
+                if len(hist_returns) < self.lookback - 1:
+                    continue
+
+                try:
+                    # Step 1: Check for crisis (v3.1: requires 3/3 signals)
+                    is_crisis = False
+                    if self.use_depression_gauge:
+                        is_crisis, signals = detect_crisis(backtest_prices, date, version='v3.1')
+
+                        if is_crisis and not self.in_crisis:
+                            if verbose:
+                                print(f"\n⚠️  CRISIS DETECTED at {date.date()}")
+                                print(f"   Signals: {sum(signals.values())}/3 active (v3.1: requires ALL 3)")
+                                print(f"   Switching to Safe Portfolio (70% bonds, 30% gold)")
+                            crisis_dates.append(date)
+                            self.in_crisis = True
+
+                        elif not is_crisis and self.in_crisis:
+                            if verbose:
+                                print(f"\n✅ CRISIS CLEARED at {date.date()}")
+                                print(f"   Returning to normal allocation")
+                            self.in_crisis = False
+
+                    # Step 2: Calculate weights
+                    if is_crisis:
+                        # Use Safe Portfolio during crisis (overrides constraints)
+                        weights = get_safe_portfolio_weights(
+                            backtest_prices.columns.tolist()
+                        )
+                    else:
+                        # Normal optimization
+                        if self.use_return_expectations:
+                            # Use v3.1 optimizer with fixes
+                            weights = optimize_weights_v3_1(
+                                hist_returns,
+                                min_stock_alloc=self.min_stock_alloc,
+                                max_bond_alloc=self.max_bond_alloc,
+                                max_single_asset=self.max_single_asset,
+                                balance_environments=self.balance_environments,
+                                expected_returns=None,  # Will use EWMA
+                                lambda_sharpe=self.lambda_sharpe,
+                                ewma_span=self.ewma_span
+                            )
+                        else:
+                            weights = optimize_weights_constrained(
+                                hist_returns,
+                                min_stock_alloc=self.min_stock_alloc,
+                                max_bond_alloc=self.max_bond_alloc
+                            )
+
+                    # Step 3: Rebalance (no volatility targeting in v3.1)
+                    target_weights = dict(zip(backtest_prices.columns, weights))
+                    self.portfolio.rebalance(target_weights, current_prices)
+
+                    weights_history.append({'date': date, 'in_crisis': is_crisis, **target_weights})
+
+                except Exception as e:
+                    if verbose:
+                        print(f"Error at {date}: {e}")
+                    continue
+
+        equity_series = pd.Series(equity_curve, index=dates)
+        returns = equity_series.pct_change().dropna()
+        weights_df = pd.DataFrame(weights_history).set_index('date') if weights_history else pd.DataFrame()
+
+        results = {
+            'equity_curve': equity_series,
+            'returns': returns,
+            'weights_history': weights_df,
+            'final_value': equity_curve[-1],
+            'total_return': (equity_curve[-1] / self.initial_capital - 1),
+            'metrics': calculate_all_metrics(returns, equity_series),
+            'crisis_dates': crisis_dates
+        }
+
+        return results

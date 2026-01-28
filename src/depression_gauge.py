@@ -186,12 +186,16 @@ def detect_momentum_break(
 def detect_crisis(
     prices: pd.DataFrame,
     current_date: pd.Timestamp,
-    signals_threshold: int = 2
+    signals_threshold: int = 2,
+    version: str = 'v3.0'
 ) -> Tuple[bool, Dict[str, bool]]:
     """
     Detect if market is in crisis mode.
 
-    Crisis declared when ≥2 of 3 signals triggered:
+    v3.0: Crisis declared when ≥2 of 3 signals triggered
+    v3.1: Crisis declared when ALL 3 signals triggered (more conservative)
+
+    Signals:
     1. Volatility spike (equity vol >2x average)
     2. Significant drawdown (any equity >15% below peak)
     3. Momentum break (S&P 500 below 200-day MA)
@@ -200,10 +204,14 @@ def detect_crisis(
         prices: DataFrame of ETF prices
         current_date: Date to check
         signals_threshold: Number of signals needed to declare crisis (default 2)
+        version: 'v3.0' (2/3 signals) or 'v3.1' (3/3 signals, more conservative)
 
     Returns:
         Tuple of (is_crisis, signal_status_dict)
     """
+    # Override signals_threshold based on version
+    if version == 'v3.1':
+        signals_threshold = 3  # Require ALL 3 signals for v3.1
     signals = {
         'volatility_spike': False,
         'drawdown': False,

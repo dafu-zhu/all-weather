@@ -427,6 +427,151 @@ def optimize_weights_v3(
     return weights
 
 
+def optimize_weights_v3_1(
+    returns: pd.DataFrame,
+    min_stock_alloc: float = 0.60,
+    max_bond_alloc: float = 0.35,
+    max_single_asset: float = 0.35,
+    balance_environments: bool = True,
+    expected_returns: pd.Series = None,
+    lambda_sharpe: float = 0.2,
+    ewma_span: int = 252
+) -> np.ndarray:
+    """
+    Calculate risk parity weights with improved return optimization (v3.1).
+
+    Fixes from v3.0:
+    1. Longer EWMA (252 days = 1 year) for more stable return estimates
+    2. Per-asset concentration limit (max 35%) to prevent over-concentration
+    3. Lower lambda (0.2) to stay closer to risk parity
+
+    Args:
+        returns: DataFrame of asset returns (lookback period)
+        min_stock_alloc: Minimum total allocation to stocks (default 60%)
+        max_bond_alloc: Maximum total allocation to bonds (default 35%)
+        max_single_asset: Maximum allocation per asset (default 35%)
+        balance_environments: Whether to balance risk across environments (default True)
+        expected_returns: Expected returns for each asset (optional, uses EWMA if None)
+        lambda_sharpe: Weight on Sharpe maximization vs risk parity (0-1, default 0.2)
+        ewma_span: EWMA span for expected returns (default 252 = 1 year)
+
+    Returns:
+        Array of optimal weights
+    """
+    from src.environment_model import environment_balance_penalty
+
+    cov_matrix = returns.cov().values
+    n_assets = len(returns.columns)
+    columns = returns.columns.tolist()
+
+    # Calculate expected returns if not provided
+    if expected_returns is None:
+        # Use exponentially-weighted moving average with longer span
+        expected_returns = returns.ewm(span=ewma_span, adjust=False).mean().iloc[-1]
+
+    expected_returns = expected_returns.values
+
+    # Identify asset types
+    stock_indices = []
+    bond_indices = []
+    other_indices = []
+
+    for i, col in enumerate(columns):
+        if col in ['510300.SH', '510500.SH', '513500.SH', '513300.SH', '510170.SH', '513100.SH']:
+            stock_indices.append(i)
+        elif col in ['511260.SH', '511090.SH', '511130.SH']:
+            bond_indices.append(i)
+        else:
+            other_indices.append(i)
+
+    # Combined objective function
+    def combined_objective(weights):
+        """Minimize: std(risk_contrib) + lambda * (-Sharpe) + environment_penalty"""
+        portfolio_vol = np.sqrt(weights @ cov_matrix @ weights)
+
+        if portfolio_vol < 1e-10:
+            return 1e10
+
+        # Component 1: Risk parity (minimize std of risk contributions)
+        marginal_contrib = cov_matrix @ weights
+        risk_contrib = weights * marginal_contrib / portfolio_vol
+        risk_parity_term = np.std(risk_contrib)
+
+        # Component 2: Negative Sharpe (we minimize, so negate to maximize Sharpe)
+        portfolio_return = weights @ expected_returns
+        sharpe = portfolio_return / portfolio_vol if portfolio_vol > 1e-10 else 0
+        sharpe_term = -sharpe
+
+        # Component 3: Environment balance penalty
+        env_penalty = 0.0
+        if balance_environments:
+            env_penalty = environment_balance_penalty(weights, cov_matrix, columns)
+
+        # Weighted combination (lower lambda = more risk parity focus)
+        objective = (1 - lambda_sharpe) * risk_parity_term + lambda_sharpe * sharpe_term + 0.1 * env_penalty
+
+        return objective
+
+    # Constraints
+    constraints = [
+        {'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0},  # Sum to 1
+    ]
+
+    # Add stock minimum constraint
+    if stock_indices:
+        constraints.append({
+            'type': 'ineq',
+            'fun': lambda w: np.sum([w[i] for i in stock_indices]) - min_stock_alloc
+        })
+
+    # Add bond maximum constraint
+    if bond_indices:
+        constraints.append({
+            'type': 'ineq',
+            'fun': lambda w: max_bond_alloc - np.sum([w[i] for i in bond_indices])
+        })
+
+    # Bounds: 0 <= weight <= max_single_asset (prevent over-concentration)
+    bounds = tuple((0.0, max_single_asset) for _ in range(n_assets))
+
+    # Initial guess
+    x0 = np.ones(n_assets) / n_assets
+
+    if stock_indices and bond_indices:
+        for i in stock_indices:
+            x0[i] = min_stock_alloc / len(stock_indices)
+        for i in bond_indices:
+            x0[i] = max_bond_alloc / len(bond_indices)
+
+        remaining = 1.0 - (min_stock_alloc + max_bond_alloc)
+        if other_indices and remaining > 0:
+            for i in other_indices:
+                x0[i] = remaining / len(other_indices)
+
+    # Optimize
+    result = minimize(
+        combined_objective,
+        x0=x0,
+        method='SLSQP',
+        bounds=bounds,
+        constraints=constraints,
+        options={'maxiter': 1000, 'ftol': 1e-9}
+    )
+
+    if not result.success:
+        print(f"⚠️  Optimization warning: {result.message}")
+        # Fallback to constrained risk parity
+        return optimize_weights_constrained(returns, min_stock_alloc, max_bond_alloc)
+
+    weights = result.x
+
+    # Ensure weights are valid
+    weights = np.maximum(weights, 0)
+    weights = weights / weights.sum()
+
+    return weights
+
+
 def _inverse_volatility_weights(cov_matrix: np.ndarray) -> np.ndarray:
     """
     Fallback method: inverse volatility weighting.
