@@ -1,0 +1,23 @@
+{
+  "clarifications": {
+    "environment_framework": {
+      "asset_mapping": "Simple: Stocks→Growth+, Bonds→Deflation, Gold→Inflation+",
+      "constraint_priority": "Asset-type constraints (60% min stocks, 35% max bonds) take priority"
+    },
+    "volatility_targeting": {
+      "scaling_method": "Normalize to sum=1.0 (no leverage)"
+    },
+    "return_optimization": {
+      "objective": "Minimize std(risk_contrib) + lambda*(-Sharpe), lambda=0.5",
+      "expected_returns": "Exponentially-weighted moving average"
+    },
+    "depression_gauge": {
+      "safe_portfolio_overrides": "Yes, 70% bonds overrides 35% max constraint during crisis"
+    },
+    "workflow": {
+      "verify_baseline": "Re-run v2.0 first to confirm 11.75% baseline",
+      "branching": "Create feature/v3-improvements branch"
+    }
+  },
+  "ready_to_execute": true
+}

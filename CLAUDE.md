@@ -73,6 +73,10 @@ The codebase implements two distinct strategies:
 - Full strategy walkthroughs with visualizations
 - Self-contained, only import from `src/`
 
+**docs/**: Only keep files that records major logic of each version
+
+- Keep the change record of each version in a single file, with file name format "v3.0_xxx.md", and put in docs/versions/
+
 ### Key Architectural Decisions
 
 1. **Separate Optimizers**: `optimize_weights()` (v1.0) and `optimize_weights_constrained()` (v2.0) are distinct functions because they solve fundamentally different problems. v1.0 minimizes std(risk_contributions), v2.0 adds inequality constraints for min stocks/max bonds.

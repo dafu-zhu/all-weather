@@ -1,0 +1,21 @@
+{
+  "workflow": "all-weather-v3-improvements",
+  "mode": "automated",
+  "phase": "setup",
+  "iteration": 1,
+  "max_iterations": 50,
+  "budget_consumed": 0,
+  "budget_limit": 20,
+  "time_started": "2026-01-28T00:00:00Z",
+  "current_task": "Setup: Create branch and verify baseline",
+  "completed_tasks": [],
+  "pending_tasks": [
+    "1.1: Economic Environment Framework",
+    "1.2: Volatility Targeting",
+    "1.3: Return-Aware Optimization",
+    "1.4: Depression Gauge",
+    "1.5: v3.0 Integration",
+    "1.6: Evaluation"
+  ],
+  "phase_2_triggered": false
+}
