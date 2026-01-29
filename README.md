@@ -1,12 +1,30 @@
 # All Weather Strategy - Pure Risk Parity Implementation
 
-Pure implementation of Ray Dalio's All Weather Strategy for the A-share market following risk parity principles.
+Pure implementation of Ray Dalio's All Weather Strategy for **A-share and US markets** following risk parity principles.
 
 ## Overview
 
 This project implements **true All Weather** strategy where each asset contributes **equally** to portfolio risk, ensuring consistent performance across different economic environments.
 
 **Key Principle**: Equal risk contribution from all assets (bonds, stocks, commodities).
+
+## Two Implementations
+
+### v1.0 - A-share Markets (China ETFs)
+- **Data Source**: Local CSV with 7 A-share ETFs
+- **Market**: Shanghai Stock Exchange
+- **Period**: 2018-2026 (8 years)
+- **Currency**: CNY (¥)
+- **Transaction Cost**: 0.03%
+- **Status**: ✅ Production
+
+### v1.1 - US Markets (US ETFs)
+- **Data Source**: yfinance (real-time download)
+- **Market**: US equity and bond markets
+- **ETF Universe**: 8 US ETFs (SPY, QQQ, IWM, TLT, IEF, TIP, GLD, DBC)
+- **Currency**: USD ($)
+- **Transaction Cost**: 0.10%
+- **Status**: ✅ Production
 
 ## Performance (2018-2026)
 
@@ -48,6 +66,8 @@ This project implements **true All Weather** strategy where each asset contribut
 
 ## Quick Start
 
+### A-share Version (v1.0)
+
 ```bash
 # Activate environment
 uv sync
@@ -57,6 +77,16 @@ python scripts/run_v1_baseline.py
 
 # Or launch Jupyter notebook
 jupyter notebook notebooks/all_weather_v1_baseline.ipynb
+```
+
+### US Version (v1.1)
+
+```bash
+# Activate environment
+uv sync
+
+# Launch Jupyter notebook (downloads data via yfinance)
+jupyter notebook notebooks/all_weather_v1.1_us.ipynb
 ```
 
 ## Asset Universe (7 High-Quality ETFs)
@@ -76,6 +106,23 @@ jupyter notebook notebooks/all_weather_v1_baseline.ipynb
 **Why 79% bonds?** Bonds have ~2.7% volatility vs stocks at ~22%. For equal risk contribution, bonds need 8x the allocation of stocks.
 
 **Data Quality**: All ETFs have <5% zero returns in backtest period (2018-2026). No frozen data issues.
+
+## US Asset Universe (8 ETFs)
+
+| Class | Ticker | Name | Description |
+|-------|--------|------|-------------|
+| Stock | SPY | SPDR S&P 500 | US large-cap stocks (S&P 500) |
+| Stock | QQQ | Invesco QQQ Trust | US tech stocks (Nasdaq-100) |
+| Stock | IWM | iShares Russell 2000 | US small-cap stocks |
+| Bond | TLT | iShares 20+ Year Treasury | Long-term US Treasury bonds |
+| Bond | IEF | iShares 7-10 Year Treasury | Intermediate-term Treasury bonds |
+| Bond | TIP | iShares TIPS Bond | Inflation-protected Treasury bonds |
+| Commodity | GLD | SPDR Gold Shares | Physical gold |
+| Commodity | DBC | Invesco DB Commodity | Broad commodity index |
+
+**Data Source**: yfinance API (real-time historical data from 2015-present)
+
+**Note**: US version uses higher transaction cost (0.10% vs 0.03%) due to typical US brokerage fees.
 
 ## Risk Parity Verification
 
@@ -97,28 +144,33 @@ Std(RC): 0.00000000 (perfect balance)
 ```
 all-weather/
 ├── src/
-│   ├── optimizer.py       # Pure risk parity optimizer
-│   ├── strategy.py        # AllWeatherV1 strategy class
-│   ├── portfolio.py       # Portfolio management
-│   ├── backtest.py        # Backtesting engine
-│   ├── metrics.py         # Performance calculations
-│   └── data_loader.py     # ETF data loading
+│   ├── optimizer.py          # Pure risk parity optimizer (shared)
+│   ├── portfolio.py          # Portfolio management (shared)
+│   ├── metrics.py            # Performance calculations (shared)
+│   ├── strategy.py           # AllWeatherV1 - A-share strategy
+│   ├── data_loader.py        # A-share ETF data loading
+│   ├── strategy_us.py        # AllWeatherUS - US strategy
+│   └── data_loader_us.py     # US ETF data loading (yfinance)
 ├── notebooks/
-│   └── all_weather_v1_baseline.ipynb   # Interactive analysis
+│   ├── all_weather_v1_baseline.ipynb   # A-share interactive analysis
+│   └── all_weather_v1.1_us.ipynb       # US interactive analysis
 ├── data/
-│   └── etf_prices_7etf.csv             # 7 high-quality ETFs
+│   └── etf_prices_7etf.csv             # 7 A-share ETFs (production)
 ├── scripts/
-│   └── run_v1_baseline.py              # Production script
+│   └── run_v1_baseline.py              # A-share backtest script
 └── docs/
     ├── versions/v1.0_baseline.md       # Baseline documentation
     └── RISK_PARITY_ANALYSIS.md         # Risk parity principles
 ```
 
-## Usage Example
+**Modular Design**: Core modules (optimizer, portfolio, metrics) are shared between A-share and US implementations.
+
+## Usage Examples
+
+### A-share Version (v1.0)
 
 ```python
 from src.data_loader import load_prices
-from src.optimizer import optimize_weights
 from src.strategy import AllWeatherV1
 
 # Load data
@@ -128,14 +180,42 @@ prices = load_prices('data/etf_prices_7etf.csv')
 strategy = AllWeatherV1(
     prices=prices,
     initial_capital=1_000_000,
-    rebalance_freq='W-MON',  # Weekly
-    lookback=100,
+    rebalance_freq='W-MON',
+    lookback=252,
     commission_rate=0.0003
 )
 
 results = strategy.run_backtest(start_date='2018-01-01')
 
 print(f"Final Value: ¥{results['final_value']:,.0f}")
+print(f"Annual Return: {results['metrics']['annual_return']:.2%}")
+print(f"Sharpe Ratio: {results['metrics']['sharpe_ratio']:.2f}")
+print(f"Max Drawdown: {results['metrics']['max_drawdown']:.2%}")
+```
+
+### US Version (v1.1)
+
+```python
+from src.data_loader_us import download_us_etfs, get_all_weather_us_etfs
+from src.strategy_us import AllWeatherUS
+
+# Download US ETF data
+etf_universe = get_all_weather_us_etfs()
+tickers = list(etf_universe.keys())
+prices = download_us_etfs(tickers, start_date='2015-01-01')
+
+# Run backtest
+strategy = AllWeatherUS(
+    prices=prices,
+    initial_capital=100_000,
+    rebalance_freq='W-MON',
+    lookback=252,
+    commission_rate=0.001
+)
+
+results = strategy.run_backtest(start_date='2018-01-01')
+
+print(f"Final Value: ${results['final_value']:,.0f}")
 print(f"Annual Return: {results['metrics']['annual_return']:.2%}")
 print(f"Sharpe Ratio: {results['metrics']['sharpe_ratio']:.2f}")
 print(f"Max Drawdown: {results['metrics']['max_drawdown']:.2%}")
@@ -184,11 +264,12 @@ See `docs/RISK_PARITY_ANALYSIS.md` for full analysis.
 ## Requirements
 
 ```
-numpy>=1.21.0
-pandas>=1.3.0
-scipy>=1.7.0
-matplotlib>=3.4.0
-seaborn>=0.11.0
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+yfinance>=0.2.0
 jupyter>=1.0.0
 ```
 
