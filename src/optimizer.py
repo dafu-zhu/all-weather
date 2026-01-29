@@ -1,8 +1,8 @@
 """
 Portfolio Optimization Module
 
-Implements risk parity optimization with optional constraints.
-Contains both v1.0 (pure risk parity) and v2.0 (constrained) optimizers.
+Implements pure risk parity optimization following Ray Dalio's All Weather principles.
+Each asset contributes equally to portfolio risk.
 """
 
 import numpy as np
@@ -78,138 +78,6 @@ def optimize_weights(returns: pd.DataFrame) -> np.ndarray:
     return result.x
 
 
-def optimize_weights_constrained(
-    returns: pd.DataFrame,
-    min_stock_alloc: float = 0.40,
-    max_bond_alloc: float = 0.50
-) -> np.ndarray:
-    """
-    Calculate risk parity weights with allocation constraints (v2.0).
-
-    Enforces:
-    - Minimum total stock allocation
-    - Maximum total bond allocation
-    - Individual asset bounds [0, 1]
-    - Weights sum to 1
-
-    Args:
-        returns: DataFrame of asset returns (lookback period)
-        min_stock_alloc: Minimum total allocation to stocks (default 40%)
-        max_bond_alloc: Maximum total allocation to bonds (default 50%)
-
-    Returns:
-        Array of optimal weights
-    """
-    cov_matrix = returns.cov().values
-    n_assets = len(returns.columns)
-
-    # Identify asset types based on ETF codes
-    columns = returns.columns.tolist()
-    stock_indices = []
-    bond_indices = []
-    other_indices = []
-
-    for i, col in enumerate(columns):
-        # Stock ETFs
-        if col in ['510300.SH', '510500.SH', '513500.SH', '513300.SH', '510170.SH', '513100.SH']:
-            stock_indices.append(i)
-        # Bond ETFs
-        elif col in ['511260.SH', '511090.SH', '511130.SH']:
-            bond_indices.append(i)
-        # Commodities and others
-        else:
-            other_indices.append(i)
-
-    # Objective: minimize std(risk_contributions)
-    def risk_parity_objective(weights):
-        portfolio_vol = np.sqrt(weights @ cov_matrix @ weights)
-        if portfolio_vol < 1e-10:
-            return 1e10
-
-        marginal_contrib = cov_matrix @ weights
-        risk_contrib = weights * marginal_contrib / portfolio_vol
-
-        # Standard deviation of risk contributions
-        return np.std(risk_contrib)
-
-    # Constraints
-    constraints = [
-        {'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0},  # Sum to 1
-    ]
-
-    # Add stock minimum constraint if we have stocks
-    if stock_indices:
-        constraints.append({
-            'type': 'ineq',
-            'fun': lambda w: np.sum([w[i] for i in stock_indices]) - min_stock_alloc
-        })
-
-    # Add bond maximum constraint if we have bonds
-    if bond_indices:
-        constraints.append({
-            'type': 'ineq',
-            'fun': lambda w: max_bond_alloc - np.sum([w[i] for i in bond_indices])
-        })
-
-    # Bounds: 0 <= weight <= 1 for all assets
-    bounds = tuple((0.0, 1.0) for _ in range(n_assets))
-
-    # Initial guess - equal weight
-    x0 = np.ones(n_assets) / n_assets
-
-    # Try to enforce constraints in initial guess
-    if stock_indices and bond_indices:
-        # Give stocks the minimum allocation, split equally
-        for i in stock_indices:
-            x0[i] = min_stock_alloc / len(stock_indices)
-
-        # Give bonds the max allocation, split equally
-        for i in bond_indices:
-            x0[i] = max_bond_alloc / len(bond_indices)
-
-        # Remaining for others
-        remaining = 1.0 - (min_stock_alloc + max_bond_alloc)
-        if other_indices and remaining > 0:
-            for i in other_indices:
-                x0[i] = remaining / len(other_indices)
-
-    # Optimize
-    result = minimize(
-        risk_parity_objective,
-        x0=x0,
-        method='SLSQP',
-        bounds=bounds,
-        constraints=constraints,
-        options={'maxiter': 1000, 'ftol': 1e-9}
-    )
-
-    if not result.success:
-        print(f"⚠️  Optimization warning: {result.message}")
-        # Try with relaxed constraints
-        constraints_relaxed = [
-            {'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0}
-        ]
-
-        result = minimize(
-            risk_parity_objective,
-            x0=x0,
-            method='SLSQP',
-            bounds=bounds,
-            constraints=constraints_relaxed,
-            options={'maxiter': 1000}
-        )
-
-        if not result.success:
-            # Fallback: use equal weight
-            return np.ones(n_assets) / n_assets
-
-    weights = result.x
-
-    # Ensure weights are non-negative and sum to 1
-    weights = np.maximum(weights, 0)
-    weights = weights / weights.sum()
-
-    return weights
 
 
 def risk_contribution(weights: np.ndarray, cov_matrix: np.ndarray) -> np.ndarray:
@@ -284,6 +152,57 @@ def check_risk_parity(weights: np.ndarray, cov_matrix: np.ndarray, tolerance: fl
     std_risk_contrib = np.std(risk_contribs)
 
     return std_risk_contrib < tolerance, std_risk_contrib
+
+
+def apply_volatility_target(
+    weights: np.ndarray,
+    cov_matrix: np.ndarray,
+    target_vol: float = 0.06,
+    annualization_factor: float = np.sqrt(252)
+) -> np.ndarray:
+    """
+    Scale risk parity weights to target volatility level.
+
+    This function uniformly scales all weights to achieve a target portfolio
+    volatility while maintaining the equal risk contribution property of risk parity.
+
+    Based on Asness et al. (2012) - volatility targeting is a proven approach
+    for scaling All Weather portfolios to desired risk levels.
+
+    Args:
+        weights: Risk parity weights (summing to 1.0)
+        cov_matrix: Covariance matrix of asset returns
+        target_vol: Target annualized portfolio volatility (default 6%)
+        annualization_factor: Factor to annualize volatility (default sqrt(252) for daily)
+
+    Returns:
+        Scaled weights targeting the specified volatility level
+
+    Note:
+        - Uniform scaling preserves risk parity ratios
+        - If scaled weights sum > 1.0, they are normalized (no leverage constraint)
+        - For leverage-allowed portfolios, weights can sum > 1.0
+    """
+    # Calculate current portfolio volatility (annualized)
+    portfolio_variance = weights @ cov_matrix @ weights
+    portfolio_vol = np.sqrt(portfolio_variance) * annualization_factor
+
+    # Avoid division by zero
+    if portfolio_vol < 1e-10:
+        return weights
+
+    # Calculate scaling factor
+    scaling_factor = target_vol / portfolio_vol
+
+    # Scale all weights uniformly (preserves risk parity)
+    scaled_weights = weights * scaling_factor
+
+    # Apply leverage constraint if needed (normalize if sum > 1.0)
+    # For no-leverage portfolios, ensure weights sum to 1.0
+    if scaled_weights.sum() > 1.0:
+        scaled_weights = scaled_weights / scaled_weights.sum()
+
+    return scaled_weights
 
 
 def _inverse_volatility_weights(cov_matrix: np.ndarray) -> np.ndarray:

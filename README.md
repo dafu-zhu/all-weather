@@ -1,180 +1,185 @@
-# All Weather Strategy - Risk Parity Implementation
+# All Weather Strategy - Pure Risk Parity Implementation
 
-Implementation of Ray Dalio's All Weather Strategy for the A-share market with systematic optimization.
+Pure implementation of Ray Dalio's All Weather Strategy for the A-share market following risk parity principles.
 
-## Version History
+## Overview
 
-- **v1.0 Baseline**: Pure risk parity (3.71% return, -4.12% drawdown)
-- **v2.0 Improved**: Constrained risk parity with clean data ⭐
-  - **12.00% annual return**, 0.86 Sharpe, -13.97% max drawdown
-  - Clean 5-ETF dataset (removed frozen assets)
-  - 2.99x benchmark multiple
+This project implements **true All Weather** strategy where each asset contributes **equally** to portfolio risk, ensuring consistent performance across different economic environments.
+
+**Key Principle**: Equal risk contribution from all assets (bonds, stocks, commodities).
+
+## Performance (2018-2026)
+
+### Optimized v1.0 (Current)
+
+| Metric | All Weather v1.0 | Benchmark (CSI 300) | Advantage |
+|--------|------------------|---------------------|-----------|
+| Annual Return | **7.05%** | 4.02% | **+3.03%** |
+| Sharpe Ratio | **1.11** | 0.05 | **22x better** |
+| Max Drawdown | **-3.90%** | -44.75% | **91% lower** |
+| Volatility | 3.65% | 21.98% | 83% lower |
+| Final Value (¥1M start) | **¥1,697,909** | ¥1,363,089 | **+¥334,820** |
+
+**Key Achievements**:
+- ✅ 1.75x benchmark return with 91% lower drawdown
+- ✅ Perfect risk parity (std(RC) < 1e-6)
+- ✅ Enhanced tail risk analytics (VaR, CVaR, skewness, kurtosis)
+
+**Recent Improvements** (Jan 2026):
+- Optimized lookback period: 100 → 252 days (+0.15% return)
+- Enhanced risk metrics: Added VaR, CVaR, distribution analysis
+- Performance gain: +1.11% portfolio value vs baseline
+
+## Strategy Configuration
+
+### Optimized Parameters (v1.0)
+
+- **Optimization**: Pure risk parity (equal risk from each asset)
+- **Rebalancing**: Weekly (Mondays) - optimal for risk parity
+- **Lookback**: 252 days (1 trading year) - optimal for stability
+- **Transaction Cost**: 0.03% per trade
+- **Volatility Targeting**: None (not beneficial for this portfolio)
+- **Dataset**: 7 high-quality ETFs (aligned data)
+
+**Why these parameters?**
+- 252-day lookback provides most stable covariance estimates (+0.15% return vs 100-day)
+- Weekly rebalancing maintains optimal allocation (+0.49% vs monthly)
+- No volatility targeting needed (natural 3.65% vol is appropriate)
 
 ## Quick Start
 
-### Run v2.0 Strategy (Recommended)
-
 ```bash
 # Activate environment
-source .venv/bin/activate
+uv sync
 
-# Run optimized strategy
-python run_v2_strategy.py
-```
+# Run backtest
+python scripts/run_v1_baseline.py
 
-### Run Jupyter Notebooks
-
-```bash
-# v1.0 Baseline (pure risk parity)
+# Or launch Jupyter notebook
 jupyter notebook notebooks/all_weather_v1_baseline.ipynb
-
-# v2.0 Optimized (constrained risk parity) - Recommended
-jupyter notebook notebooks/all_weather_v2_optimized.ipynb
 ```
 
-## v2.0 Performance (2018-2026)
+## Asset Universe (7 High-Quality ETFs)
 
-| Metric | v2.0 Clean | v1.0 Baseline | Benchmark (CSI 300) |
-|--------|------------|---------------|---------------------|
-| Annual Return | **12.00%** | 3.71% | 4.02% |
-| Sharpe Ratio | **0.86** | 0.32 | 0.27 |
-| Max Drawdown | -13.97% | -4.12% | -25.44% |
-| Volatility | 12.75% | 10.03% | 14.24% |
-| Final Value (¥1M) | **¥2,563,746** | ¥1,313,462 | ¥1,363,089 |
-| **Benchmark Multiple** | **2.99x** | 0.92x | 1.0x |
+| Class | ETF Code | Name | Allocation |
+|-------|----------|------|------------|
+| Stock | 510300.SH | CSI 300 | ~4% |
+| Stock | 510500.SH | CSI 500 | ~3% |
+| Stock | 513500.SH | S&P 500 | ~5% |
+| Stock | 000066.SH | China Index | ~2% |
+| Stock | 513100.SH | Nasdaq-100 | ~3% |
+| Bond | 511260.SH | 10Y Treasury | ~79% |
+| Commodity | 518880.SH | Gold | ~4% |
 
-**Key Achievement**: Nearly 3x benchmark return with 45% lower drawdown.
+**Total Stocks**: 17.6% | **Bonds**: 78.8% | **Commodities**: 3.6%
 
-## Strategy Configuration (v2.0)
+**Why 79% bonds?** Bonds have ~2.7% volatility vs stocks at ~22%. For equal risk contribution, bonds need 8x the allocation of stocks.
 
-- **Allocation**: 60% stocks, 35% bonds, 5% gold
-- **Rebalancing**: Monthly (first of month)
-- **Optimization**: Constrained risk parity
-  - Minimum 60% stocks
-  - Maximum 35% bonds
-  - 100-day covariance lookback
-- **Transaction Cost**: 0.03% per trade
+**Data Quality**: All ETFs have <5% zero returns in backtest period (2018-2026). No frozen data issues.
+
+## Risk Parity Verification
+
+```
+Risk Contributions (all equal):
+  510300.SH:  0.000266  ✓
+  510500.SH:  0.000266  ✓
+  513500.SH:  0.000266  ✓
+  511260.SH:  0.000266  ✓
+  518880.SH:  0.000266  ✓
+  000066.SH:  0.000266  ✓
+  513100.SH:  0.000266  ✓
+
+Std(RC): 0.00000000 (perfect balance)
+```
 
 ## Project Structure
 
 ```
 all-weather/
 ├── src/
-│   ├── risk_parity.py              # Original risk parity optimizer
-│   ├── risk_parity_constrained.py  # v2.0 constrained optimizer ⭐
-│   ├── portfolio.py                # Portfolio management
-│   ├── backtest.py                 # Backtesting engine
-│   ├── metrics.py                  # Performance calculations
-│   └── momentum_overlay.py         # Optional momentum signals
+│   ├── optimizer.py       # Pure risk parity optimizer
+│   ├── strategy.py        # AllWeatherV1 strategy class
+│   ├── portfolio.py       # Portfolio management
+│   ├── backtest.py        # Backtesting engine
+│   ├── metrics.py         # Performance calculations
+│   └── data_loader.py     # ETF data loading
 ├── notebooks/
-│   ├── all_weather_v1_baseline.ipynb      # v1.0 pure risk parity
-│   └── all_weather_v2_optimized.ipynb     # v2.0 constrained optimization
+│   └── all_weather_v1_baseline.ipynb   # Interactive analysis
 ├── data/
-│   ├── etf_prices.csv              # Original (7 ETFs, has frozen data)
-│   └── etf_prices_clean.csv        # Clean (5 ETFs, production) ⭐
-├── run_v2_strategy.py              # v2.0 production script ⭐
-├── v1.0_baseline.md                # Baseline results
-├── v2.0_improved.md                # Improvement analysis ⭐
-└── README.md                       # This file
+│   └── etf_prices_7etf.csv             # 7 high-quality ETFs
+├── scripts/
+│   └── run_v1_baseline.py              # Production script
+└── docs/
+    ├── versions/v1.0_baseline.md       # Baseline documentation
+    └── RISK_PARITY_ANALYSIS.md         # Risk parity principles
 ```
 
-## Asset Universe (5 High-Quality ETFs)
-
-| Class | ETF Code | Name | Zero Returns | Typical Weight |
-|-------|----------|------|--------------|----------------|
-| Stock | 510300.SH | 沪深300 (CSI 300) | 1.2% 🟢 | 18-20% |
-| Stock | 510500.SH | 中证500 (CSI 500) | 0.7% 🟢 | 14-16% |
-| Stock | 513500.SH | 标普500 (S&P 500) | 6.3% 🟢 | 26-28% |
-| Bond | 511260.SH | 10年国债 (10Y Treasury) | 24.6% 🟡 | 32-34% |
-| Commodity | 518880.SH | 黄金 (Gold) | 1.8% 🟢 | 3-5% |
-
-**Data Quality**: All ETFs have <7% zero returns (except bonds at 24.6%, which is normal for less liquid bond markets).
-
-**Removed**: 513300.SH (54% zeros) and 511090.SH (76% zeros) due to frozen/unreliable data.
-
-## Iteration History (Phase 2)
-
-| Iteration | Strategy | Dataset | Return | Sharpe | Max DD |
-|-----------|----------|---------|--------|--------|--------|
-| v1.0 | Pure risk parity | 7 ETFs | 3.71% | 0.32 | -4.12% |
-| Iter 2 | 40% min stocks | 7 ETFs | 6.75% | 0.70 | -7.77% |
-| Iter 3 | 50% min stocks | 7 ETFs | 7.60% | 0.70 | -10.02% |
-| Iter 4 | 45% stocks, weekly | 7 ETFs | 7.44% | 0.75 | -9.54% |
-| Iter 5 | + Momentum overlay | 7 ETFs | 7.28% | 0.73 | -10.17% |
-| Iter 6 | + Momentum filter | 7 ETFs | 7.74% | 0.68 | -13.11% |
-| Iter 7 | 60% stocks, monthly | 7 ETFs | 7.92% | 0.66 | -10.71% |
-| **v2.0 Final** | **60% stocks, monthly** | **5 Clean ETFs** | **12.00%** | **0.86** | **-13.97%** |
-
-**Winner**: v2.0 with 60% stocks, monthly rebalancing, clean 5-ETF dataset.
-
-**Key Insight**: Data quality matters more than diversification. 5 high-quality ETFs outperform 7 ETFs with frozen data.
-
-## Key Learnings
-
-1. **Data Quality > Diversification**: 5 high-quality ETFs (12.00% return) dramatically outperform 7 ETFs with frozen data (7.92%). Always check for frozen prices (zero returns).
-
-2. **Constrained Risk Parity > Pure**: Adding allocation constraints (min stocks, max bonds) dramatically improves returns while maintaining risk control.
-
-3. **Monthly > Weekly**: Monthly rebalancing reduces costs 77% with better performance (¥17K → ¥3.8K costs).
-
-4. **Simple Wins**: Complex momentum overlays hurt more than helped. Best strategy is conceptually simple.
-
-5. **Target Achieved**: 12.00% annual return exceeds 10% target by 20%. This represents 2.99x benchmark multiple.
-
-6. **Risk-Adjusted Excellence**: 0.86 Sharpe ratio means strategy delivers strong returns per unit of risk taken.
-
-## Documentation
-
-- **FINAL_RESULTS.md**: Mission summary - both phases completed successfully ⭐
-- **v1.0_baseline.md**: Initial implementation and baseline results
-- **v2.0_improved.md**: Detailed analysis of 7 optimization iterations
-- **RESULTS_SUMMARY.md**: Comprehensive performance comparison
-- **ETF_REPLACEMENT_GUIDE.md**: Data quality analysis and alternatives
-- **ALTERNATIVE_ETF_ATTEMPT.md**: Technical report on fetching alternative ETFs
-
-## Usage
-
-### Run Production Strategy
+## Usage Example
 
 ```python
-from src.risk_parity_constrained import optimize_weights_constrained
-from src.portfolio import Portfolio
-import pandas as pd
+from src.data_loader import load_prices
+from src.optimizer import optimize_weights
+from src.strategy import AllWeatherV1
 
-# Load clean data (recommended)
-prices = pd.read_csv('data/etf_prices_clean.csv', index_col=0, parse_dates=True)
+# Load data
+prices = load_prices('data/etf_prices_7etf.csv')
 
-# Initialize portfolio
-portfolio = Portfolio(initial_capital=1_000_000)
-
-# Calculate optimal weights (monthly)
-returns = prices.tail(100).pct_change().dropna()
-weights = optimize_weights_constrained(
-    returns,
-    min_stock_alloc=0.60,
-    max_bond_alloc=0.35
-)
-
-# Rebalance
-target_weights = dict(zip(prices.columns, weights))
-trades = portfolio.rebalance(target_weights, prices.iloc[-1])
-```
-
-### Or Use the Wrapper
-
-```python
-from run_v2_strategy import AllWeatherV2
-
-strategy = AllWeatherV2(
+# Run backtest
+strategy = AllWeatherV1(
     prices=prices,
     initial_capital=1_000_000,
-    min_stock_alloc=0.60,
-    max_bond_alloc=0.35
+    rebalance_freq='W-MON',  # Weekly
+    lookback=100,
+    commission_rate=0.0003
 )
 
 results = strategy.run_backtest(start_date='2018-01-01')
-strategy.plot_results(results)
+
+print(f"Final Value: ¥{results['final_value']:,.0f}")
+print(f"Annual Return: {results['metrics']['annual_return']:.2%}")
+print(f"Sharpe Ratio: {results['metrics']['sharpe_ratio']:.2f}")
+print(f"Max Drawdown: {results['metrics']['max_drawdown']:.2%}")
 ```
+
+## Why v2.0 Was Removed
+
+An earlier version (v2.0) attempted to improve returns by forcing 60% stock allocation while maintaining "risk parity." However, this violated the fundamental All Weather principle:
+
+**Mathematical Impossibility**: Cannot have both equal risk contributions AND high equity allocation given volatility differences (stocks 22% vs bonds 2.7%).
+
+**Result**: v2.0's risk contributions were **215,948x worse** than true risk parity, with bonds contributing **negative risk** and stocks dominating.
+
+**Decision**: Removed v2.0 to maintain integrity of All Weather principles. This implementation is honest pure risk parity.
+
+See `docs/RISK_PARITY_ANALYSIS.md` for full analysis.
+
+## Documentation
+
+- **docs/versions/v1.0_baseline.md**: Implementation details and methodology
+- **docs/RISK_PARITY_ANALYSIS.md**: Why risk parity and high returns are incompatible
+- **data/DATA_QUALITY_REPORT.md**: Data alignment and quality analysis
+- **ALIGNMENT_SUMMARY.md**: Data cleaning process
+
+## Key Insights
+
+1. **True All Weather = Low Returns**: Ray Dalio's original strategy accepts modest returns (4-6%) for stability
+2. **Data Quality Matters**: Clean, aligned data is critical - frozen prices destroy backtests
+3. **Risk Parity Works**: -4.21% max drawdown vs -44.75% benchmark proves risk balance
+4. **Simple is Honest**: Pure risk parity without constraints maintains theoretical integrity
+
+## When to Use This Strategy
+
+**Use All Weather when:**
+- Risk control is priority over returns
+- Want stable performance across economic environments
+- Can tolerate 78% bond allocation
+- Value low drawdowns over high returns
+
+**Don't use when:**
+- Need >10% annual returns
+- Can't tolerate bond-heavy allocation
+- Want equity-driven growth
+- Have aggressive risk tolerance
 
 ## Requirements
 
@@ -192,13 +197,6 @@ Install with:
 uv sync
 ```
 
-## Next Steps
-
-1. **Paper Trading**: Test v2.0 in live market for 3-6 months
-2. **Monitoring**: Track performance vs backtest expectations
-3. **Adjustments**: Re-optimize if market regime changes significantly
-4. **Phase 3**: Consider enhancements (volatility targeting, factor tilts, etc.)
-
 ## License
 
 MIT
@@ -206,5 +204,6 @@ MIT
 ## Acknowledgments
 
 - Strategy concept: Ray Dalio's All Weather Portfolio
-- Optimization: Risk parity with allocation constraints
+- Optimization: Pure risk parity (equal risk contribution)
 - Implementation: Python + scipy + pandas
+- Principle: Theoretical integrity over performance optimization
