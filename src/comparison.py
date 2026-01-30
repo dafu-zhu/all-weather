@@ -169,9 +169,12 @@ class VersionComparison:
 
         print_section("Performance Comparison")
 
+        # Extract portfolio objects from strategies
+        portfolios = {version: strategy.portfolio for version, strategy in self.strategies.items()}
+
         comparison_df = print_comparison_table(
             self.results,
-            self.strategies
+            portfolios
         )
 
         return comparison_df
