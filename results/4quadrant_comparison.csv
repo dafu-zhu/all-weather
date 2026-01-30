@@ -1,0 +1,12 @@
+,v1.1 Pure RP,v1.2 Constrained RP,v1.3 4-Quadrant,v1.3 + Vol(3.8%)
+Final Value,"$128,682","$144,904","$128,231","$114,789"
+Total Return,28.68%,44.90%,28.23%,14.79%
+Annual Return,3.18%,4.72%,3.14%,1.73%
+Annual Volatility,5.97%,6.68%,5.78%,3.27%
+Sharpe Ratio,0.03,0.26,0.02,-0.39
+Sortino Ratio,0.04,0.34,0.03,-0.50
+Max Drawdown,-14.13%,-15.35%,-13.95%,-8.98%
+Calmar Ratio,0.23,0.31,0.22,0.19
+Win Rate,53.06%,53.50%,52.91%,53.60%
+Rebalances,380,380,380,380
+Total Commissions,$707,"$1,179",$528,$529

@@ -15,10 +15,11 @@ from .optimizer import optimize_weights
 
 class Backtester:
     """
-    Backtesting engine for All Weather Strategy.
+    Backtesting engine for All Weather Strategy v1.2.
 
     Simulates portfolio performance with:
-    - Weekly rebalancing (every Monday)
+    - Covariance shrinkage for robust estimation (v1.2)
+    - Adaptive rebalancing (only when weights drift > threshold)
     - Risk parity weight optimization
     - Transaction cost application
     - Full performance tracking
@@ -30,7 +31,9 @@ class Backtester:
         initial_capital: float = 1_000_000,
         rebalance_freq: str = 'W-MON',
         lookback: int = 100,
-        commission_rate: float = 0.0003
+        commission_rate: float = 0.0003,
+        rebalance_threshold: float = 0.05,
+        use_shrinkage: bool = True
     ):
         """
         Initialize backtester.
@@ -41,15 +44,49 @@ class Backtester:
             rebalance_freq: Rebalancing frequency ('W-MON' for weekly Monday)
             lookback: Number of days for covariance calculation
             commission_rate: Transaction cost as fraction
+            rebalance_threshold: Max weight drift before rebalancing (default 0.05 = 5%)
+                               Set to 0 to always rebalance (v1.0 behavior)
+            use_shrinkage: Use Ledoit-Wolf shrinkage (v1.2, default True)
         """
         self.prices = prices
         self.initial_capital = initial_capital
         self.rebalance_freq = rebalance_freq
         self.lookback = lookback
         self.commission_rate = commission_rate
+        self.rebalance_threshold = rebalance_threshold
+        self.use_shrinkage = use_shrinkage
 
         self.portfolio = Portfolio(initial_capital, commission_rate)
         self.results = {}
+        self.last_target_weights = None
+
+    def should_rebalance(self, current_prices: pd.Series, target_weights: Dict[str, float]) -> tuple:
+        """
+        Check if portfolio needs rebalancing based on weight drift.
+
+        Args:
+            current_prices: Current market prices
+            target_weights: Target portfolio weights
+
+        Returns:
+            Tuple of (should_rebalance, max_drift)
+        """
+        if self.last_target_weights is None:
+            return True, 0.0
+
+        if self.rebalance_threshold == 0:
+            return True, 0.0
+
+        current_weights = self.portfolio.get_weights(current_prices)
+
+        max_drift = 0.0
+        for asset in target_weights.keys():
+            current_weight = current_weights.get(asset, 0.0)
+            target_weight = self.last_target_weights.get(asset, 0.0)
+            drift = abs(current_weight - target_weight)
+            max_drift = max(max_drift, drift)
+
+        return max_drift > self.rebalance_threshold, max_drift
 
     def run(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict:
         """
@@ -94,6 +131,7 @@ class Backtester:
         equity_curve = []
         dates = []
         weights_history = []
+        rebalances_skipped = 0
 
         # Run simulation
         for date in backtest_prices.loc[start_date:end_date].index:
@@ -120,21 +158,29 @@ class Backtester:
                     print(f"Warning: Insufficient returns at {date}, skipping rebalance")
                     continue
 
-                # Calculate risk parity weights
+                # Calculate risk parity weights (v1.2: with optional shrinkage)
                 try:
-                    weights = optimize_weights(hist_returns)
+                    weights = optimize_weights(hist_returns, use_shrinkage=self.use_shrinkage)
                     target_weights = dict(zip(backtest_prices.columns, weights))
 
-                    # Execute rebalancing
-                    trades = self.portfolio.rebalance(target_weights, current_prices)
+                    # Check if we need to rebalance (v1.1 adaptive feature)
+                    needs_rebalance, drift = self.should_rebalance(current_prices, target_weights)
 
-                    # Record weights
-                    weights_history.append({
-                        'date': date,
-                        **target_weights
-                    })
+                    if needs_rebalance:
+                        # Execute rebalancing
+                        trades = self.portfolio.rebalance(target_weights, current_prices)
+                        self.last_target_weights = target_weights.copy()
 
-                    print(f"[{date.strftime('%Y-%m-%d')}] Rebalanced: {len(trades)} trades, Value: ¥{portfolio_value:,.0f}")
+                        # Record weights
+                        weights_history.append({
+                            'date': date,
+                            **target_weights
+                        })
+
+                        print(f"[{date.strftime('%Y-%m-%d')}] Rebalanced: {len(trades)} trades, Drift: {drift:.2%}, Value: ¥{portfolio_value:,.0f}")
+                    else:
+                        rebalances_skipped += 1
+                        print(f"[{date.strftime('%Y-%m-%d')}] Skipped (drift {drift:.2%} < {self.rebalance_threshold:.2%})")
 
                 except Exception as e:
                     print(f"Error at {date}: {e}")
@@ -156,8 +202,19 @@ class Backtester:
             'total_commissions': self.portfolio.get_total_commissions(),
             'trade_count': self.portfolio.get_trade_count(),
             'turnover': self.portfolio.get_turnover(),
-            'rebalance_count': len(weights_history)
+            'rebalance_count': len(weights_history),
+            'rebalances_executed': len(weights_history),
+            'rebalances_skipped': rebalances_skipped,
+            'rebalance_efficiency': 1 - (rebalances_skipped / len(rebalance_dates)) if len(rebalance_dates) > 0 else 0
         }
+
+        print(f"\n{'='*70}")
+        print(f"Backtest Summary:")
+        print(f"  Rebalances executed: {len(weights_history)}")
+        print(f"  Rebalances skipped: {rebalances_skipped}")
+        print(f"  Efficiency: {self.results['rebalance_efficiency']:.1%}")
+        print(f"  Total commissions: ¥{self.results['total_commissions']:,.0f}")
+        print(f"{'='*70}")
 
         return self.results
 
