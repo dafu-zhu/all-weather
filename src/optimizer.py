@@ -145,49 +145,6 @@ def risk_contribution(weights: np.ndarray, cov_matrix: np.ndarray) -> np.ndarray
     return risk_contrib
 
 
-def validate_weights(weights: np.ndarray, tolerance: float = 0.001) -> Tuple[bool, str]:
-    """
-    Validate that weights meet portfolio constraints.
-
-    Args:
-        weights: Asset weights to validate
-        tolerance: Tolerance for sum and bound checks
-
-    Returns:
-        Tuple of (is_valid, error_message)
-    """
-    # Check sum to 1
-    if abs(weights.sum() - 1.0) > tolerance:
-        return False, f"Weights sum to {weights.sum():.4f}, expected 1.0"
-
-    # Check bounds [0, 1]
-    if (weights < -tolerance).any():
-        return False, f"Negative weights found: {weights[weights < 0]}"
-
-    if (weights > 1 + tolerance).any():
-        return False, f"Weights > 1 found: {weights[weights > 1]}"
-
-    return True, "Valid"
-
-
-def check_risk_parity(weights: np.ndarray, cov_matrix: np.ndarray, tolerance: float = 0.05) -> Tuple[bool, float]:
-    """
-    Check if weights achieve risk parity (equal risk contributions).
-
-    Args:
-        weights: Asset weights
-        cov_matrix: Covariance matrix
-        tolerance: Maximum acceptable std dev of risk contributions
-
-    Returns:
-        Tuple of (is_risk_parity, std_dev_of_risk_contributions)
-    """
-    risk_contribs = risk_contribution(weights, cov_matrix)
-    std_risk_contrib = np.std(risk_contribs)
-
-    return std_risk_contrib < tolerance, std_risk_contrib
-
-
 def apply_volatility_target(
     weights: np.ndarray,
     cov_matrix: np.ndarray,
