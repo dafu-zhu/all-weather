@@ -2,9 +2,9 @@
 """
 Generate strategy performance data for the live tracker.
 
-Simulates the All-Weather v2.0 strategy from 2026-01-02 with:
+Simulates the All-Weather v2.1 strategy from 2026-01-02 with:
 - Risk parity weights (Ledoit-Wolf shrinkage)
-- Daily mean-reversion (10% drift threshold)
+- Asymmetric thresholds: 3% trim (profit-taking) / 10% buy (buying dips)
 - Weekly target weight updates (Mondays)
 - 0.03% commission per trade
 
@@ -34,7 +34,9 @@ TRADABLE_ETFS = [
     '513100.SH',  # Nasdaq-100
 ]
 START_DATE = '2026-01-02'
-DRIFT_THRESHOLD = 0.10  # 10% drift (v2.0 tuned parameter)
+# Asymmetric thresholds: trim early (lock gains), buy patient (avoid catching falling knives)
+TRIM_THRESHOLD = 0.03  # 3% - trim overweight assets early
+BUY_THRESHOLD = 0.10   # 10% - patient on underweight assets
 COMMISSION_RATE = 0.0003  # 0.03%
 LOOKBACK = 252
 INITIAL_CAPITAL = 1_000_000
@@ -61,13 +63,14 @@ def simulate_strategy(prices: pd.DataFrame) -> dict:
 
     Returns dict with pnl series, rebalance events, and metrics.
     """
-    # Run v2.0 backtest
+    # Run v2.0 backtest with asymmetric thresholds
     strategy = AllWeatherV2(
         prices=prices,
         initial_capital=INITIAL_CAPITAL,
         lookback=LOOKBACK,
         commission_rate=COMMISSION_RATE,
-        drift_threshold=DRIFT_THRESHOLD,
+        trim_threshold=TRIM_THRESHOLD,
+        buy_threshold=BUY_THRESHOLD,
         use_shrinkage=True,
     )
 
@@ -101,8 +104,9 @@ def simulate_strategy(prices: pd.DataFrame) -> dict:
     return {
         'last_updated': datetime.now().isoformat(),
         'start_date': START_DATE,
-        'strategy_version': 'v2.0',
-        'drift_threshold': f"{DRIFT_THRESHOLD:.0%}",
+        'strategy_version': 'v2.1',
+        'trim_threshold': f"{TRIM_THRESHOLD:.0%}",
+        'buy_threshold': f"{BUY_THRESHOLD:.0%}",
         'pnl': pnl_series,
         'rebalances': rebalances,
         'metrics': {

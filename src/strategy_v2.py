@@ -20,13 +20,14 @@ class AllWeatherV2:
     Key differences from v1.2:
     - Daily drift checking (not just weekly)
     - Per-asset trim/buy (not full portfolio rebalance)
-    - Single symmetric drift_threshold parameter
+    - Asymmetric thresholds: trim_threshold (profit-taking) vs buy_threshold (buying dips)
 
     Version History:
     - v1.0: Pure risk parity, always rebalance
     - v1.1: + Adaptive rebalancing (weekly, 5% drift threshold)
     - v1.2: + Ledoit-Wolf covariance shrinkage
     - v2.0: + Daily mean-reversion (per-asset drift checking)
+    - v2.1: + Asymmetric thresholds (tighter for profit-taking)
     """
 
     def __init__(
@@ -36,6 +37,8 @@ class AllWeatherV2:
         lookback: int = 252,
         commission_rate: float = 0.0003,
         drift_threshold: float = 0.05,
+        trim_threshold: Optional[float] = None,
+        buy_threshold: Optional[float] = None,
         use_shrinkage: bool = True,
     ) -> None:
         """
@@ -46,14 +49,19 @@ class AllWeatherV2:
             initial_capital: Starting capital
             lookback: Days for covariance calculation (252 = 1 year)
             commission_rate: Transaction cost (0.03% = 0.0003)
-            drift_threshold: Trigger threshold for per-asset rebalancing (default 5%)
+            drift_threshold: Symmetric threshold (used if trim/buy not specified)
+            trim_threshold: Threshold for selling overweight assets (profit-taking)
+            buy_threshold: Threshold for buying underweight assets (buying dips)
             use_shrinkage: Use Ledoit-Wolf shrinkage (default True)
         """
         self.prices = prices
         self.initial_capital = initial_capital
         self.lookback = lookback
         self.commission_rate = commission_rate
-        self.drift_threshold = drift_threshold
+        # Support asymmetric thresholds: if not specified, fall back to symmetric
+        self.trim_threshold = trim_threshold if trim_threshold is not None else drift_threshold
+        self.buy_threshold = buy_threshold if buy_threshold is not None else drift_threshold
+        self.drift_threshold = drift_threshold  # Keep for backward compatibility
         self.use_shrinkage = use_shrinkage
 
         self.portfolio = Portfolio(initial_capital, commission_rate)
@@ -63,6 +71,10 @@ class AllWeatherV2:
     def check_daily_drift(self, current_prices: pd.Series) -> List[Dict]:
         """
         Check each asset for drift beyond threshold.
+
+        Uses asymmetric thresholds:
+        - trim_threshold: for overweight assets (profit-taking)
+        - buy_threshold: for underweight assets (buying dips)
 
         Returns list of trades needed: [{'asset': str, 'action': 'buy'|'sell', 'drift': float}]
         """
@@ -76,11 +88,21 @@ class AllWeatherV2:
             current_weight = current_weights.get(asset, 0.0)
             drift = current_weight - target_weight
 
-            if abs(drift) > self.drift_threshold:
-                action = 'sell' if drift > 0 else 'buy'
+            # Asymmetric thresholds: tighter for profit-taking, looser for buying dips
+            if drift > self.trim_threshold:
+                # Overweight: trim (profit-taking)
                 trades_needed.append({
                     'asset': asset,
-                    'action': action,
+                    'action': 'sell',
+                    'drift': drift,
+                    'current_weight': current_weight,
+                    'target_weight': target_weight,
+                })
+            elif drift < -self.buy_threshold:
+                # Underweight: buy (buying the dip)
+                trades_needed.append({
+                    'asset': asset,
+                    'action': 'buy',
                     'drift': drift,
                     'current_weight': current_weight,
                     'target_weight': target_weight,
