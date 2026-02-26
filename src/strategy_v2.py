@@ -60,6 +60,81 @@ class AllWeatherV2:
         self.target_weights: Optional[Dict[str, float]] = None
         self.daily_trades: List[Dict] = []
 
+    def check_daily_drift(self, current_prices: pd.Series) -> List[Dict]:
+        """
+        Check each asset for drift beyond threshold.
+
+        Returns list of trades needed: [{'asset': str, 'action': 'buy'|'sell', 'drift': float}]
+        """
+        if self.target_weights is None:
+            return []
+
+        trades_needed = []
+        current_weights = self.portfolio.get_weights(current_prices)
+
+        for asset, target_weight in self.target_weights.items():
+            current_weight = current_weights.get(asset, 0.0)
+            drift = current_weight - target_weight
+
+            if abs(drift) > self.drift_threshold:
+                action = 'sell' if drift > 0 else 'buy'
+                trades_needed.append({
+                    'asset': asset,
+                    'action': action,
+                    'drift': drift,
+                    'current_weight': current_weight,
+                    'target_weight': target_weight,
+                })
+
+        return trades_needed
+
+    def execute_daily_rebalance(
+        self,
+        trades_needed: List[Dict],
+        current_prices: pd.Series,
+        date: pd.Timestamp,
+    ) -> int:
+        """
+        Execute per-asset rebalancing for assets that drifted beyond threshold.
+
+        Returns number of trades executed.
+        """
+        if not trades_needed:
+            return 0
+
+        # For simplicity, rebalance all drifted assets back to target
+        # This is equivalent to a partial rebalance
+        portfolio_value = self.portfolio.get_value(current_prices)
+
+        for trade in trades_needed:
+            asset = trade['asset']
+            target_weight = trade['target_weight']
+            target_value = portfolio_value * target_weight
+            current_shares = self.portfolio.holdings.get(asset, 0)
+            current_value = current_shares * current_prices[asset]
+
+            if trade['action'] == 'sell':
+                # Sell excess
+                sell_value = current_value - target_value
+                sell_shares = sell_value / current_prices[asset]
+                if sell_shares > 0:
+                    self.portfolio.sell(asset, sell_shares, current_prices[asset])
+            else:
+                # Buy deficit
+                buy_value = target_value - current_value
+                buy_shares = buy_value / current_prices[asset]
+                if buy_shares > 0 and self.portfolio.cash >= buy_value:
+                    self.portfolio.buy(asset, buy_shares, current_prices[asset])
+
+            self.daily_trades.append({
+                'date': date,
+                'asset': asset,
+                'action': trade['action'],
+                'drift': trade['drift'],
+            })
+
+        return len(trades_needed)
+
     def run_backtest(
         self,
         start_date: Optional[str] = None,
