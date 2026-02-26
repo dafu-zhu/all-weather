@@ -147,5 +147,128 @@ class AllWeatherV2:
         end_date: Optional[str] = None,
         verbose: bool = True,
     ) -> dict:
-        """Run backtest and return results."""
-        raise NotImplementedError("To be implemented in Task 2")
+        """
+        Run backtest with daily drift checking and weekly weight optimization.
+
+        Args:
+            start_date: Backtest start date (defaults to lookback days after first price)
+            end_date: Backtest end date (defaults to last price date)
+            verbose: Print progress messages
+
+        Returns:
+            dict with keys:
+                - equity_curve: pd.Series of portfolio values
+                - returns: pd.Series of daily returns
+                - weights_history: pd.DataFrame of target weights over time
+                - final_value: final portfolio value
+                - total_return: total return as decimal
+                - metrics: dict from calculate_all_metrics
+                - daily_rebalance_count: number of daily drift rebalances
+                - weekly_rebalance_count: number of weekly weight updates
+                - daily_trades: list of daily trade records
+        """
+        # Set date range
+        start = pd.Timestamp(start_date) if start_date else self.prices.index[self.lookback]
+        end = pd.Timestamp(end_date) if end_date else self.prices.index[-1]
+
+        backtest_prices = self.prices.loc[:end].copy()
+
+        # Get weekly rebalance dates (Mondays)
+        weekly_dates = backtest_prices.loc[start:end].resample('W-MON').first().index
+
+        if verbose:
+            print(f"Backtest: {start.date()} to {end.date()}")
+            print(f"Weekly rebalance dates: {len(weekly_dates)}")
+            print(f"Drift threshold: {self.drift_threshold:.1%}")
+
+        # Tracking variables
+        equity_curve = []
+        dates = []
+        weights_history = []
+        daily_rebalance_count = 0
+        weekly_rebalance_count = 0
+        self.daily_trades = []  # Reset daily trades
+
+        # Main backtest loop
+        for date in backtest_prices.loc[start:end].index:
+            current_prices = backtest_prices.loc[date]
+            portfolio_value = self.portfolio.get_value(current_prices)
+
+            # Track equity curve
+            equity_curve.append(portfolio_value)
+            dates.append(date)
+
+            # WEEKLY: Update target weights via risk parity optimization
+            if date in weekly_dates:
+                lookback_start = backtest_prices.index.get_loc(date) - self.lookback
+                if lookback_start < 0:
+                    continue
+
+                lookback_end = backtest_prices.index.get_loc(date)
+                hist_returns = backtest_prices.iloc[lookback_start:lookback_end].pct_change().dropna()
+
+                if len(hist_returns) < self.lookback - 1:
+                    continue
+
+                try:
+                    weights = optimize_weights(hist_returns, use_shrinkage=self.use_shrinkage)
+                    self.target_weights = dict(zip(backtest_prices.columns, weights))
+                    weekly_rebalance_count += 1
+
+                    # Record weights history
+                    weights_history.append({'date': date, **self.target_weights})
+
+                    # Initial allocation: buy into positions on first Monday
+                    if portfolio_value == self.initial_capital and self.portfolio.cash == self.initial_capital:
+                        self.portfolio.rebalance(self.target_weights, current_prices)
+                        if verbose:
+                            print(f"[{date.date()}] Initial allocation (weekly #{weekly_rebalance_count})")
+                    elif verbose:
+                        print(f"[{date.date()}] Weights updated (weekly #{weekly_rebalance_count})")
+
+                except Exception as e:
+                    if verbose:
+                        print(f"Error at {date}: {e}")
+                    continue
+
+            # DAILY: Check drift and execute rebalancing if needed
+            if self.target_weights is not None:
+                trades_needed = self.check_daily_drift(current_prices)
+                if trades_needed:
+                    executed = self.execute_daily_rebalance(trades_needed, current_prices, date)
+                    if executed > 0:
+                        daily_rebalance_count += 1
+                        if verbose:
+                            assets = [t['asset'] for t in trades_needed]
+                            print(f"[{date.date()}] Daily rebalance: {executed} trades ({', '.join(assets)})")
+
+        # Build results
+        equity_series = pd.Series(equity_curve, index=dates)
+        returns = equity_series.pct_change().dropna()
+
+        if weights_history:
+            weights_df = pd.DataFrame(weights_history).set_index('date')
+        else:
+            weights_df = pd.DataFrame()
+
+        results = {
+            'equity_curve': equity_series,
+            'returns': returns,
+            'weights_history': weights_df,
+            'final_value': equity_curve[-1] if equity_curve else self.initial_capital,
+            'total_return': (equity_curve[-1] / self.initial_capital - 1) if equity_curve else 0.0,
+            'metrics': calculate_all_metrics(returns, equity_series),
+            'daily_rebalance_count': daily_rebalance_count,
+            'weekly_rebalance_count': weekly_rebalance_count,
+            'daily_trades': self.daily_trades,
+        }
+
+        if verbose:
+            print(f"\n{'='*60}")
+            print("Backtest Complete!")
+            print(f"{'='*60}")
+            print(f"Weekly weight updates: {weekly_rebalance_count}")
+            print(f"Daily drift rebalances: {daily_rebalance_count}")
+            print(f"Total daily trades: {len(self.daily_trades)}")
+
+        return results
