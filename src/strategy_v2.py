@@ -122,6 +122,12 @@ class AllWeatherV2:
                     result = self.portfolio.sell(asset, sell_shares, current_prices[asset], date)
                     if result:
                         executed_count += 1
+                        self.daily_trades.append({
+                            'date': date,
+                            'asset': asset,
+                            'action': trade['action'],
+                            'drift': trade['drift'],
+                        })
             else:
                 # Buy deficit
                 buy_value = target_value - current_value
@@ -131,13 +137,12 @@ class AllWeatherV2:
                     result = self.portfolio.buy(asset, buy_shares, current_prices[asset], date)
                     if result:
                         executed_count += 1
-
-            self.daily_trades.append({
-                'date': date,
-                'asset': asset,
-                'action': trade['action'],
-                'drift': trade['drift'],
-            })
+                        self.daily_trades.append({
+                            'date': date,
+                            'asset': asset,
+                            'action': trade['action'],
+                            'drift': trade['drift'],
+                        })
 
         return executed_count
 
