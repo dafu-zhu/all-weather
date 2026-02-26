@@ -57,6 +57,8 @@ class Portfolio:
         initial_cash: float = 0.0,
         commission_rate: float = 0.0003,
         rebalance_threshold: float = 0.05,
+        trim_threshold: Optional[float] = None,
+        buy_threshold: Optional[float] = None,
         lookback: int = 252
     ):
         """Initialize empty portfolio.
@@ -65,7 +67,9 @@ class Portfolio:
             tradable_etfs: List of ETF tickers to track
             initial_cash: Starting cash balance
             commission_rate: Commission rate (default 0.03%)
-            rebalance_threshold: Drift threshold for rebalancing (default 5%)
+            rebalance_threshold: Symmetric drift threshold (default 5%, used if trim/buy not set)
+            trim_threshold: Threshold for trimming overweight assets (v2.1: 3%)
+            buy_threshold: Threshold for buying underweight assets (v2.1: 10%)
             lookback: Covariance lookback period (default 252 days)
         """
         # Core state
@@ -81,7 +85,9 @@ class Portfolio:
 
         # Strategy params
         self._commission_rate = commission_rate
-        self._rebalance_threshold = rebalance_threshold
+        self._trim_threshold = trim_threshold if trim_threshold is not None else rebalance_threshold
+        self._buy_threshold = buy_threshold if buy_threshold is not None else rebalance_threshold
+        self._rebalance_threshold = rebalance_threshold  # Keep for backward compatibility
         self._lookback = lookback
 
     def add_cash(self, amount: float) -> None:
@@ -359,19 +365,33 @@ class Portfolio:
         target_weights_array = optimize_weights(hist_returns, use_shrinkage=True)
         target_weights = dict(zip(self._tradable_etfs, target_weights_array))
 
-        # Calculate drift
-        drift = max(
-            abs(current_weights[etf] - target_weights[etf])
-            for etf in self._tradable_etfs
-        )
+        # Calculate drift and check asymmetric thresholds
+        # Trim threshold: for overweight assets (taking profits)
+        # Buy threshold: for underweight assets (buying dips)
+        max_drift = 0.0
+        assets_to_rebalance = []
 
-        should_rebalance = drift > self._rebalance_threshold
+        for etf in self._tradable_etfs:
+            diff = current_weights[etf] - target_weights[etf]
+            abs_diff = abs(diff)
+            max_drift = max(max_drift, abs_diff)
+
+            if diff > self._trim_threshold:
+                # Overweight: needs trimming
+                assets_to_rebalance.append((etf, 'trim', diff))
+            elif diff < -self._buy_threshold:
+                # Underweight: needs buying
+                assets_to_rebalance.append((etf, 'buy', diff))
+
+        should_rebalance = len(assets_to_rebalance) > 0
 
         result = {
             'current_weights': current_weights,
             'target_weights': target_weights,
-            'drift': drift,
-            'threshold': self._rebalance_threshold,
+            'drift': max_drift,
+            'trim_threshold': self._trim_threshold,
+            'buy_threshold': self._buy_threshold,
+            'threshold': self._rebalance_threshold,  # backward compatibility
             'should_rebalance': should_rebalance
         }
 
