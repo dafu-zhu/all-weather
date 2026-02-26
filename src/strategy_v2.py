@@ -105,12 +105,13 @@ class AllWeatherV2:
         # For simplicity, rebalance all drifted assets back to target
         # This is equivalent to a partial rebalance
         portfolio_value = self.portfolio.get_value(current_prices)
+        executed_count = 0
 
         for trade in trades_needed:
             asset = trade['asset']
             target_weight = trade['target_weight']
             target_value = portfolio_value * target_weight
-            current_shares = self.portfolio.holdings.get(asset, 0)
+            current_shares = self.portfolio.positions.get(asset, 0)
             current_value = current_shares * current_prices[asset]
 
             if trade['action'] == 'sell':
@@ -118,13 +119,18 @@ class AllWeatherV2:
                 sell_value = current_value - target_value
                 sell_shares = sell_value / current_prices[asset]
                 if sell_shares > 0:
-                    self.portfolio.sell(asset, sell_shares, current_prices[asset])
+                    result = self.portfolio.sell(asset, sell_shares, current_prices[asset], date)
+                    if result:
+                        executed_count += 1
             else:
                 # Buy deficit
                 buy_value = target_value - current_value
                 buy_shares = buy_value / current_prices[asset]
-                if buy_shares > 0 and self.portfolio.cash >= buy_value:
-                    self.portfolio.buy(asset, buy_shares, current_prices[asset])
+                total_cost = buy_value * (1 + self.commission_rate)
+                if buy_shares > 0 and self.portfolio.cash >= total_cost:
+                    result = self.portfolio.buy(asset, buy_shares, current_prices[asset], date)
+                    if result:
+                        executed_count += 1
 
             self.daily_trades.append({
                 'date': date,
@@ -133,7 +139,7 @@ class AllWeatherV2:
                 'drift': trade['drift'],
             })
 
-        return len(trades_needed)
+        return executed_count
 
     def run_backtest(
         self,

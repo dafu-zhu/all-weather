@@ -234,6 +234,82 @@ class Portfolio:
         total_trade_value = sum(abs(trade.value) for trade in self.trade_history)
         return total_trade_value / self.initial_capital if self.initial_capital > 0 else 0
 
+    def buy(self, etf: str, shares: float, price: float, date: datetime = None) -> Optional[Trade]:
+        """
+        Execute a buy trade.
+
+        Args:
+            etf: ETF ticker
+            shares: Number of shares to buy
+            price: Price per share
+            date: Trade date (defaults to now)
+
+        Returns:
+            Trade record if executed, None if insufficient cash
+        """
+        if shares <= 0 or price <= 0:
+            return None
+
+        trade_value = shares * price
+        commission = trade_value * self.commission_rate
+        total_cost = trade_value + commission
+
+        if total_cost > self.cash:
+            return None
+
+        self.cash -= total_cost
+        self.positions[etf] = self.positions.get(etf, 0) + shares
+
+        trade = Trade(
+            date=date or pd.Timestamp.now(),
+            etf=etf,
+            shares=shares,
+            price=price,
+            value=trade_value,
+            commission=commission,
+            side='buy'
+        )
+        self.trade_history.append(trade)
+        return trade
+
+    def sell(self, etf: str, shares: float, price: float, date: datetime = None) -> Optional[Trade]:
+        """
+        Execute a sell trade.
+
+        Args:
+            etf: ETF ticker
+            shares: Number of shares to sell
+            price: Price per share
+            date: Trade date (defaults to now)
+
+        Returns:
+            Trade record if executed, None if insufficient shares
+        """
+        if shares <= 0 or price <= 0:
+            return None
+
+        current_shares = self.positions.get(etf, 0)
+        if shares > current_shares:
+            return None
+
+        trade_value = shares * price
+        commission = trade_value * self.commission_rate
+
+        self.cash += trade_value - commission
+        self.positions[etf] = current_shares - shares
+
+        trade = Trade(
+            date=date or pd.Timestamp.now(),
+            etf=etf,
+            shares=-shares,
+            price=price,
+            value=trade_value,
+            commission=commission,
+            side='sell'
+        )
+        self.trade_history.append(trade)
+        return trade
+
     def reset(self):
         """Reset portfolio to initial state."""
         self.cash = self.initial_capital
