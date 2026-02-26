@@ -1,0 +1,77 @@
+======================================================================
+DRIFT THRESHOLD PARAMETER TUNING - All Weather v2.0
+======================================================================
+
+Loading data...
+Data range: 2015-01-05 to 2026-01-28
+
+======================================================================
+TRAINING PHASE (2018-01-01 to 2023-12-31)
+======================================================================
+
+v2.0 Results:
+     3%: Sharpe=0.583, Return=6.43%, MaxDD=-6.98%, DailyRebalances=32
+     5%: Sharpe=0.488, Return=6.09%, MaxDD=-7.77%, DailyRebalances=9
+     7%: Sharpe=0.608, Return=6.52%, MaxDD=-6.95%, DailyRebalances=4
+    10%: Sharpe=0.662, Return=6.83%, MaxDD=-9.03%, DailyRebalances=3
+    15%: Sharpe=0.586, Return=7.14%, MaxDD=-9.03%, DailyRebalances=0
+
+v1.2 Baseline: Sharpe=0.785, Return=7.22%, MaxDD=-7.68%
+
+Best v2.0 threshold (training): 10% (Sharpe=0.662)
+
+======================================================================
+VALIDATION PHASE (2024-01-01 to 2024-12-31)
+======================================================================
+
+v2.0 Results:
+     3%: Sharpe=2.531, Return=17.93%, MaxDD=-2.67%
+     5%: Sharpe=2.324, Return=15.57%, MaxDD=-2.75%
+     7%: Sharpe=2.769, Return=15.24%, MaxDD=-2.33%
+    10%: Sharpe=2.928, Return=15.97%, MaxDD=-2.25%
+    15%: Sharpe=2.928, Return=15.97%, MaxDD=-2.25%
+
+v1.2 Baseline: Sharpe=3.136, Return=19.35%, MaxDD=-2.78%
+
+Best threshold (10%) validation rank: 1/5 [PASSED]
+
+======================================================================
+TEST PHASE (2025-01-01 to end)
+======================================================================
+
+v2.0 (threshold=10%) test results:
+  Sharpe Ratio:     2.611
+  Annual Return:    20.25%
+  Max Drawdown:     -4.70%
+  Daily Rebalances: 0
+
+v1.2 Baseline test results:
+  Sharpe Ratio:     2.428
+  Annual Return:    18.97%
+  Max Drawdown:     -5.15%
+  Rebalances:       52
+
+======================================================================
+SUMMARY
+======================================================================
+
+Training Results (sorted by Sharpe):
+ threshold   sharpe   return    max_dd  daily_rebalances  weekly_rebalances  final_value  rank
+      0.10 0.661890 0.068272 -0.090341                 3                284 1.464598e+06     1
+      0.07 0.607598 0.065177 -0.069497                 4                284 1.440244e+06     2
+      0.15 0.585600 0.071356 -0.090341                 0                284 1.489195e+06     3
+      0.03 0.582527 0.064320 -0.069777                32                284 1.433564e+06     4
+      0.05 0.487551 0.060856 -0.077738                 9                284 1.406812e+06     5
+
+----------------------------------------------------------------------
+
+Comparison Summary:
+  Training:   v2.0 <= v1.2 (0.662 vs 0.785)
+  Validation: v2.0 <= v1.2 (2.928 vs 3.136)
+  Test:       v2.0 > v1.2 (2.611 vs 2.428)
+
+----------------------------------------------------------------------
+RECOMMENDATION: ADOPT v2.0 with drift_threshold=10%
+  - Validation passed (rank 1/5)
+  - Test Sharpe improved: 2.611 vs 2.428
+======================================================================
