@@ -173,12 +173,8 @@ class AllWeatherV2:
 
         backtest_prices = self.prices.loc[:end].copy()
 
-        # Get weekly rebalance dates (Mondays)
-        weekly_dates = backtest_prices.loc[start:end].resample('W-MON').first().index
-
         if verbose:
             print(f"Backtest: {start.date()} to {end.date()}")
-            print(f"Weekly rebalance dates: {len(weekly_dates)}")
             print(f"Drift threshold: {self.drift_threshold:.1%}")
 
         # Tracking variables
@@ -188,9 +184,11 @@ class AllWeatherV2:
         daily_rebalance_count = 0
         weekly_rebalance_count = 0
         self.daily_trades = []  # Reset daily trades
+        last_rebalance_week = None  # Track last week we rebalanced (I1 - Monday holiday handling)
 
         # Main backtest loop
         for date in backtest_prices.loc[start:end].index:
+            weekly_updated_today = False  # I3 - Race condition guard
             current_prices = backtest_prices.loc[date]
             portfolio_value = self.portfolio.get_value(current_prices)
 
@@ -199,12 +197,21 @@ class AllWeatherV2:
             dates.append(date)
 
             # WEEKLY: Update target weights via risk parity optimization
-            if date in weekly_dates:
-                lookback_start = backtest_prices.index.get_loc(date) - self.lookback
+            # I1 - Use week number comparison instead of exact date matching (handles Monday holidays)
+            current_week = date.isocalendar()[:2]  # (year, week_number)
+            is_new_week = current_week != last_rebalance_week
+
+            if date.weekday() == 0 and is_new_week:  # Monday of a new week
+                # M1 - Cache the get_loc result for efficiency
+                current_idx = backtest_prices.index.get_loc(date)
+                lookback_start = current_idx - self.lookback
                 if lookback_start < 0:
+                    # I2 - Add verbose logging when skipping due to insufficient data
+                    if verbose:
+                        print(f"[{date.date()}] Skipped: insufficient lookback data")
                     continue
 
-                lookback_end = backtest_prices.index.get_loc(date)
+                lookback_end = current_idx
                 hist_returns = backtest_prices.iloc[lookback_start:lookback_end].pct_change().dropna()
 
                 if len(hist_returns) < self.lookback - 1:
@@ -214,6 +221,8 @@ class AllWeatherV2:
                     weights = optimize_weights(hist_returns, use_shrinkage=self.use_shrinkage)
                     self.target_weights = dict(zip(backtest_prices.columns, weights))
                     weekly_rebalance_count += 1
+                    last_rebalance_week = current_week  # I1 - Track the week we rebalanced
+                    weekly_updated_today = True  # I3 - Skip daily drift check after weekly update
 
                     # Record weights history
                     weights_history.append({'date': date, **self.target_weights})
@@ -232,7 +241,8 @@ class AllWeatherV2:
                     continue
 
             # DAILY: Check drift and execute rebalancing if needed
-            if self.target_weights is not None:
+            # I3 - Skip daily drift check on days when weekly weights are updated
+            if self.target_weights is not None and not weekly_updated_today:
                 trades_needed = self.check_daily_drift(current_prices)
                 if trades_needed:
                     executed = self.execute_daily_rebalance(trades_needed, current_prices, date)
