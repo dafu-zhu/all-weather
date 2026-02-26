@@ -9,12 +9,24 @@ Compares v2.0 against v1.2 baseline.
 """
 
 import sys
-sys.path.append('.')
+from pathlib import Path
+
+# Add project root to path for reliable imports
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 import pandas as pd
 from src.data_loader import load_prices
 from src.strategy import AllWeatherV1
 from src.strategy_v2 import AllWeatherV2
+
+# Data path
+DATA_PATH = 'data/etf_prices_7etf.csv'
+
+# Strategy parameters
+INITIAL_CAPITAL = 1_000_000
+LOOKBACK = 252
+COMMISSION_RATE = 0.0003
 
 # Configuration
 THRESHOLDS = [0.03, 0.05, 0.07, 0.10, 0.15]
@@ -26,13 +38,24 @@ TEST_START = '2025-01-01'
 TEST_END = None  # Use all available data
 
 
+def validate_data_coverage(prices: pd.DataFrame, start_date: str, end_date: str, phase_name: str):
+    """Validate price data covers requested date range."""
+    start = pd.Timestamp(start_date)
+    if start < prices.index[0]:
+        raise ValueError(f"{phase_name}: Data starts {prices.index[0].date()}, requested {start_date}")
+    if end_date:
+        end = pd.Timestamp(end_date)
+        if end > prices.index[-1]:
+            raise ValueError(f"{phase_name}: Data ends {prices.index[-1].date()}, requested {end_date}")
+
+
 def run_v2_backtest(prices, threshold, start_date, end_date):
     """Run v2.0 backtest with given drift_threshold and return metrics."""
     strategy = AllWeatherV2(
         prices=prices,
-        initial_capital=1_000_000,
-        lookback=252,
-        commission_rate=0.0003,
+        initial_capital=INITIAL_CAPITAL,
+        lookback=LOOKBACK,
+        commission_rate=COMMISSION_RATE,
         drift_threshold=threshold,
         use_shrinkage=True,
     )
@@ -55,10 +78,10 @@ def run_v12_backtest(prices, start_date, end_date):
     """Run v1.2 baseline backtest and return metrics."""
     strategy = AllWeatherV1(
         prices=prices,
-        initial_capital=1_000_000,
+        initial_capital=INITIAL_CAPITAL,
         rebalance_freq='W-MON',
-        lookback=252,
-        commission_rate=0.0003,
+        lookback=LOOKBACK,
+        commission_rate=COMMISSION_RATE,
         rebalance_threshold=0.05,
         use_shrinkage=True,
     )
@@ -83,13 +106,19 @@ def main():
 
     # Load data
     print("\nLoading data...")
-    prices = load_prices('data/etf_prices_7etf.csv')
+    try:
+        prices = load_prices(DATA_PATH)
+    except Exception as e:
+        print(f"Error loading data: {e}")
+        sys.exit(1)
     print(f"Data range: {prices.index[0].date()} to {prices.index[-1].date()}")
 
     # === TRAINING PHASE ===
     print(f"\n{'=' * 70}")
     print(f"TRAINING PHASE ({TRAIN_START} to {TRAIN_END})")
     print("=" * 70)
+
+    validate_data_coverage(prices, TRAIN_START, TRAIN_END, "Training")
 
     print("\nv2.0 Results:")
     train_results = []
@@ -118,6 +147,8 @@ def main():
     print(f"VALIDATION PHASE ({VAL_START} to {VAL_END})")
     print("=" * 70)
 
+    validate_data_coverage(prices, VAL_START, VAL_END, "Validation")
+
     print("\nv2.0 Results:")
     val_results = []
     for threshold in THRESHOLDS:
@@ -145,6 +176,8 @@ def main():
     print(f"\n{'=' * 70}")
     print(f"TEST PHASE ({TEST_START} to end)")
     print("=" * 70)
+
+    validate_data_coverage(prices, TEST_START, TEST_END, "Test")
 
     v2_test = run_v2_backtest(prices, best_threshold, TEST_START, TEST_END)
     v12_test = run_v12_backtest(prices, TEST_START, TEST_END)
