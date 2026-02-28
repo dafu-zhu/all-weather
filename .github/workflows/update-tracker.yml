@@ -62,6 +62,7 @@ jobs:
 
           # Format JSON for Prettier compliance
           cd portfolio
+          npm install
           npx prettier --write assets/data/pnl_tracker.json
 
           # Commit and push if changed
