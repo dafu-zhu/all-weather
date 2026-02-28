@@ -57,6 +57,7 @@ jobs:
           git clone https://x-access-token:${PORTFOLIO_TOKEN}@github.com/dafu-zhu/dafu-zhu.github.io.git portfolio
 
           # Copy updated JSON
+          mkdir -p portfolio/assets/data
           cp data/pnl_tracker.json portfolio/assets/data/
 
           # Commit and push if changed
