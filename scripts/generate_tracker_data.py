@@ -40,6 +40,7 @@ BUY_THRESHOLD = 0.10   # 10% - patient on underweight assets
 COMMISSION_RATE = 0.0003  # 0.03%
 LOOKBACK = 252
 INITIAL_CAPITAL = 1_000_000
+BENCHMARK_TICKER = '510300.SH'  # CSI 300 as benchmark
 
 
 def fetch_prices(tickers: list[str], start: str = '2015-01-01') -> pd.DataFrame:
@@ -55,6 +56,26 @@ def fetch_prices(tickers: list[str], start: str = '2015-01-01') -> pd.DataFrame:
     prices = pd.DataFrame(data)
     prices.index = prices.index.tz_localize(None)
     return prices.dropna()
+
+
+def calculate_benchmark(prices: pd.DataFrame, start_date: str) -> list[dict]:
+    """Calculate benchmark (CSI300) returns from start date."""
+    benchmark_prices = prices[BENCHMARK_TICKER]
+    benchmark_prices = benchmark_prices[benchmark_prices.index >= start_date]
+
+    if benchmark_prices.empty:
+        return []
+
+    initial_price = benchmark_prices.iloc[0]
+    benchmark_series = []
+    for date, price in benchmark_prices.items():
+        pnl_pct = (price - initial_price) / initial_price * 100
+        benchmark_series.append({
+            'date': date.strftime('%Y-%m-%d'),
+            'value': round(pnl_pct, 2)
+        })
+
+    return benchmark_series
 
 
 def simulate_strategy(prices: pd.DataFrame) -> dict:
@@ -101,13 +122,18 @@ def simulate_strategy(prices: pd.DataFrame) -> dict:
     # Get metrics
     metrics = results['metrics']
 
+    # Calculate benchmark returns
+    benchmark_series = calculate_benchmark(prices, START_DATE)
+
     return {
         'last_updated': datetime.now().isoformat(),
         'start_date': START_DATE,
         'strategy_version': 'v2.1',
         'trim_threshold': f"{TRIM_THRESHOLD:.0%}",
         'buy_threshold': f"{BUY_THRESHOLD:.0%}",
+        'benchmark': 'CSI 300',
         'pnl': pnl_series,
+        'benchmark_pnl': benchmark_series,
         'rebalances': rebalances,
         'metrics': {
             'total_return': round(results['total_return'] * 100, 2),
