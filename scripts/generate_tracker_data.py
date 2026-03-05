@@ -55,6 +55,11 @@ def fetch_prices(tickers: list[str], start: str = '2015-01-01') -> pd.DataFrame:
 
     prices = pd.DataFrame(data)
     prices.index = prices.index.tz_localize(None)
+    # Forward-fill missing prices before dropping rows. This prevents
+    # losing an entire trading day when a single ETF has delayed data
+    # in yfinance (e.g., Mar 4 data missing for one ETF when fetched
+    # on Mar 5, which caused dropna() to remove the whole row).
+    prices = prices.ffill()
     return prices.dropna()
 
 
