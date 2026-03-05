@@ -55,11 +55,6 @@ def fetch_prices(tickers: list[str], start: str = '2015-01-01') -> pd.DataFrame:
 
     prices = pd.DataFrame(data)
     prices.index = prices.index.tz_localize(None)
-    # Forward-fill missing prices before dropping rows. This prevents
-    # losing an entire trading day when a single ETF has delayed data
-    # in yfinance (e.g., Mar 4 data missing for one ETF when fetched
-    # on Mar 5, which caused dropna() to remove the whole row).
-    prices = prices.ffill()
     return prices.dropna()
 
 
@@ -149,17 +144,55 @@ def simulate_strategy(prices: pd.DataFrame) -> dict:
     }
 
 
+def _merge_series(existing: list[dict], new: list[dict]) -> list[dict]:
+    """Merge time series, preserving existing entries and only adding new dates.
+
+    Existing data is treated as the source of truth (it was captured when
+    the market data was fresh). New entries are only added for dates not
+    already present, so delayed/missing data in yfinance can never erase
+    previously recorded values.
+    """
+    existing_by_date = {entry['date']: entry for entry in existing}
+    for entry in new:
+        if entry['date'] not in existing_by_date:
+            existing_by_date[entry['date']] = entry
+    return sorted(existing_by_date.values(), key=lambda e: e['date'])
+
+
+def _merge_rebalances(existing: list[dict], new: list[dict]) -> list[dict]:
+    """Merge rebalance events by date (union)."""
+    by_date = {entry['date']: entry for entry in existing}
+    for entry in new:
+        if entry['date'] not in by_date:
+            by_date[entry['date']] = entry
+    return sorted(by_date.values(), key=lambda e: e['date'])
+
+
 def main():
     """Generate tracker data and save to JSON."""
+    output_path = Path(__file__).parent.parent / 'data' / 'pnl_tracker.json'
+    output_path.parent.mkdir(exist_ok=True)
+
+    # Load existing data to preserve previously captured entries
+    existing = {}
+    if output_path.exists():
+        with open(output_path) as f:
+            existing = json.load(f)
+
     print("Fetching prices...")
     prices = fetch_prices(TRADABLE_ETFS)
 
     print("Simulating strategy...")
     result = simulate_strategy(prices)
 
-    # Save to data directory
-    output_path = Path(__file__).parent.parent / 'data' / 'pnl_tracker.json'
-    output_path.parent.mkdir(exist_ok=True)
+    # Merge: preserve existing time series entries, only add new dates
+    if existing:
+        result['pnl'] = _merge_series(
+            existing.get('pnl', []), result['pnl'])
+        result['benchmark_pnl'] = _merge_series(
+            existing.get('benchmark_pnl', []), result['benchmark_pnl'])
+        result['rebalances'] = _merge_rebalances(
+            existing.get('rebalances', []), result['rebalances'])
 
     with open(output_path, 'w') as f:
         json.dump(result, f, indent=2)
