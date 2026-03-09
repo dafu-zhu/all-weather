@@ -28,7 +28,7 @@ Add an auto-updating, interactive performance tracker for the All-Weather strate
 │  scripts/generate_tracker_data.py                               │
 │       │  - Uses Portfolio class                                 │
 │       │  - Fetches prices via yfinance                          │
-│       │  - Simulates rebalancing at 5% drift                    │
+│       │  - Simulates rebalancing at 3% drift                    │
 │       │  - 0.03% commission per trade                           │
 │       ▼                                                         │
 │  data/pnl_tracker.json                                          │

@@ -111,7 +111,7 @@ def update_notebook(positions, cash):
             new_source.append("# Strategy parameters\\n")
             new_source.append("START_DATE = '2026-01-29'\\n")
             new_source.append("LOOKBACK = 252  # Days for covariance calculation\\n")
-            new_source.append("REBALANCE_THRESHOLD = 0.05  # 5% drift triggers rebalance\\n")
+            new_source.append("REBALANCE_THRESHOLD = 0.03  # 3% drift triggers rebalance\\n")
             new_source.append("COMMISSION_RATE = 0.0003  # 0.03%\\n")
             new_source.append("\\n")
             new_source.append("# Chicago timezone\\n")

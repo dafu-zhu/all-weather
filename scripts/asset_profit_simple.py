@@ -25,7 +25,7 @@ strategy = AllWeatherV1(
     rebalance_freq='W-MON',
     lookback=252,
     commission_rate=0.0003,
-    rebalance_threshold=0.05,  # v1.2
+    rebalance_threshold=0.03,  # v1.2
     use_shrinkage=True,  # v1.2
 )
 

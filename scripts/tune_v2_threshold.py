@@ -82,7 +82,7 @@ def run_v12_backtest(prices, start_date, end_date):
         rebalance_freq='W-MON',
         lookback=LOOKBACK,
         commission_rate=COMMISSION_RATE,
-        rebalance_threshold=0.05,
+        rebalance_threshold=0.03,
         use_shrinkage=True,
     )
     results = strategy.run_backtest(

@@ -24,7 +24,7 @@ class AllWeatherV1:
 
     Version History:
     - v1.0: Pure risk parity, always rebalance
-    - v1.1: + Adaptive rebalancing (5% drift threshold)
+    - v1.1: + Adaptive rebalancing (3% drift threshold)
     - v1.2: + Ledoit-Wolf covariance shrinkage for robust estimation
 
     v1.2 Features:
@@ -41,7 +41,7 @@ class AllWeatherV1:
         lookback: int = 252,
         commission_rate: float = 0.0003,
         target_volatility: Optional[float] = None,
-        rebalance_threshold: float = 0.05,
+        rebalance_threshold: float = 0.03,
         use_shrinkage: bool = True,
     ) -> None:
         """
@@ -55,7 +55,7 @@ class AllWeatherV1:
             commission_rate: Transaction cost (0.03% = 0.0003)
             target_volatility: Target annualized volatility (e.g., 0.06 for 6%)
                              None = no targeting (recommended for this portfolio)
-            rebalance_threshold: Max weight drift before rebalancing (default 0.05 = 5%)
+            rebalance_threshold: Max weight drift before rebalancing (default 0.03 = 3%)
                                Set to 0 for v1.0 behavior (always rebalance)
             use_shrinkage: Use Ledoit-Wolf shrinkage for covariance (v1.2, default True)
                           Set to False for v1.0/v1.1 behavior

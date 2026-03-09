@@ -51,7 +51,7 @@ python scripts/<script_name>.py
 - **Use case**: Academic baseline, pure implementation
 
 ### v1.1 - Adaptive Rebalancing
-- **Strategy**: v1.0 + adaptive rebalancing (5% drift threshold)
+- **Strategy**: v1.0 + adaptive rebalancing (3% drift threshold)
 - **Performance (2018-2026)**: 7.58% annual return, 1.13 Sharpe, -6.55% max DD
 - **Rebalances**: 5 rebalances, ¥615 commissions (72% savings vs v1.0)
 - **Improvements over v1.0**:
@@ -106,14 +106,14 @@ strategy = AllWeatherV1(
 # v1.1 behavior (adaptive, no shrinkage)
 strategy = AllWeatherV1(
     prices=prices,
-    rebalance_threshold=0.05,
+    rebalance_threshold=0.03,
     use_shrinkage=False
 )
 
 # v1.2 behavior (adaptive + shrinkage, RECOMMENDED)
 strategy = AllWeatherV1(
     prices=prices,
-    rebalance_threshold=0.05,
+    rebalance_threshold=0.03,
     use_shrinkage=True
 )
 ```
@@ -205,7 +205,7 @@ strategy = AllWeatherV1(
     rebalance_freq='W-MON',       # Weekly Monday
     lookback=252,                 # 252 days (1 year) covariance
     commission_rate=0.0003,       # 0.03%
-    rebalance_threshold=0.05,     # 5% drift (adaptive rebalancing)
+    rebalance_threshold=0.03,     # 3% drift (adaptive rebalancing)
     use_shrinkage=True            # Ledoit-Wolf shrinkage (v1.2)
 )
 ```
