@@ -32,14 +32,14 @@ print(f"   Final value: ¥{results_v10['final_value']:,.0f}")
 print(f"   Commissions: ¥{strategy_v10.portfolio.get_total_commissions():,.0f}\n")
 
 # Test v1.1 behavior (threshold=0.05, adaptive)
-print("2. Testing v1.1 behavior (threshold=0.05):")
+print("2. Testing v1.1 behavior (threshold=0.03):")
 strategy_v11 = AllWeatherV1(
     prices=prices,
     initial_capital=1_000_000,
     rebalance_freq='W-MON',
     lookback=252,
     commission_rate=0.0003,
-    rebalance_threshold=0.05
+    rebalance_threshold=0.03
 )
 results_v11 = strategy_v11.run_backtest(start_date='2024-01-01', end_date='2024-12-31', verbose=False)
 print(f"   Rebalances executed: {results_v11['rebalances_executed']}")

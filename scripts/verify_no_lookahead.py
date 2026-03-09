@@ -35,7 +35,7 @@ def test_determinism():
             rebalance_freq='W-MON',
             lookback=252,
             commission_rate=0.0003,
-            rebalance_threshold=0.05,  # v1.1 feature
+            rebalance_threshold=0.03,  # v1.1 feature
             use_shrinkage=True          # v1.2 feature
         )
 
@@ -97,7 +97,7 @@ def test_future_data_isolation():
         rebalance_freq='W-MON',
         lookback=252,
         commission_rate=0.0003,
-        rebalance_threshold=0.05,
+        rebalance_threshold=0.03,
         use_shrinkage=True
     )
     result1 = strategy1.run_backtest(start_date='2018-01-01', end_date='2020-12-31', verbose=False)
@@ -110,7 +110,7 @@ def test_future_data_isolation():
         rebalance_freq='W-MON',
         lookback=252,
         commission_rate=0.0003,
-        rebalance_threshold=0.05,
+        rebalance_threshold=0.03,
         use_shrinkage=True
     )
     result2 = strategy2.run_backtest(start_date='2018-01-01', end_date='2022-12-31', verbose=False)

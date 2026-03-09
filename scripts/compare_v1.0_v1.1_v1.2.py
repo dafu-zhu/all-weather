@@ -3,7 +3,7 @@ Compare All Weather Strategy Versions: v1.0, v1.1, v1.2
 
 Tests the cumulative impact of improvements:
 - v1.0: Pure risk parity (always rebalance, no shrinkage)
-- v1.1: + Adaptive rebalancing (5% drift threshold)
+- v1.1: + Adaptive rebalancing (3% drift threshold)
 - v1.2: + Ledoit-Wolf covariance shrinkage
 
 Goal: Measure the impact of each improvement on performance and stability.
@@ -51,7 +51,7 @@ strategy_v11 = AllWeatherV1(
     rebalance_freq='W-MON',
     lookback=252,
     commission_rate=0.0003,
-    rebalance_threshold=0.05,   # Adaptive
+    rebalance_threshold=0.03,   # Adaptive
     use_shrinkage=False         # No shrinkage
 )
 results_v11 = strategy_v11.run_backtest(start_date='2018-01-01', verbose=False)
@@ -64,7 +64,7 @@ strategy_v12 = AllWeatherV1(
     rebalance_freq='W-MON',
     lookback=252,
     commission_rate=0.0003,
-    rebalance_threshold=0.05,   # Adaptive
+    rebalance_threshold=0.03,   # Adaptive
     use_shrinkage=True          # Shrinkage
 )
 results_v12 = strategy_v12.run_backtest(start_date='2018-01-01', verbose=False)

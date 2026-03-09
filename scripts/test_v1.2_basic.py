@@ -23,7 +23,7 @@ strategy_v11 = AllWeatherV1(
     rebalance_freq='W-MON',
     lookback=252,
     commission_rate=0.0003,
-    rebalance_threshold=0.05,
+    rebalance_threshold=0.03,
     use_shrinkage=False
 )
 results_v11 = strategy_v11.run_backtest(start_date='2024-01-01', end_date='2024-12-31', verbose=False)
@@ -41,7 +41,7 @@ strategy_v12 = AllWeatherV1(
     rebalance_freq='W-MON',
     lookback=252,
     commission_rate=0.0003,
-    rebalance_threshold=0.05,
+    rebalance_threshold=0.03,
     use_shrinkage=True
 )
 results_v12 = strategy_v12.run_backtest(start_date='2024-01-01', end_date='2024-12-31', verbose=False)

@@ -2,7 +2,7 @@
 """
 Test PnL performance of v2.0 strategy WITHOUT asymmetric thresholds.
 
-Compares symmetric 5% drift threshold vs the old asymmetric 3%/10% setup.
+Compares symmetric 3% drift threshold vs the old asymmetric 3%/10% setup.
 Backtest period: 2025-01-01 to latest available data.
 """
 

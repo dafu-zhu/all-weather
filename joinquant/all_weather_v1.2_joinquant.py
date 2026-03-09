@@ -11,7 +11,7 @@ Expected Performance (2018-2026 backtest):
 
 Strategy Configuration:
 - Universe: 7 A-share ETFs (stocks, bonds, gold)
-- Rebalancing: Adaptive (5% drift threshold)
+- Rebalancing: Adaptive (3% drift threshold)
 - Lookback: 252 trading days (1 year)
 - Commission: 0.03%
 - Shrinkage: Ledoit-Wolf covariance estimation
@@ -245,7 +245,7 @@ def initialize(context):
     # Strategy Parameters (v1.2 configuration)
     context.lookback = 252                  # 252 trading days = 1 year
     context.commission_rate = 0.0003        # 0.03% commission
-    context.rebalance_threshold = 0.05      # 5% drift threshold (v1.2)
+    context.rebalance_threshold = 0.03      # 3% symmetric drift threshold
     context.use_shrinkage = True            # Ledoit-Wolf shrinkage (v1.2)
 
     # State Tracking
@@ -269,7 +269,7 @@ def initialize(context):
     log.info("All Weather v1.2 Strategy Initialized")
     log.info("=" * 60)
     log.info(f"Universe: {len(context.securities)} ETFs")
-    log.info(f"Rebalancing: Adaptive (5% drift threshold)")
+    log.info(f"Rebalancing: Adaptive (3% drift threshold)")
     log.info(f"Lookback: {context.lookback} days")
     log.info(f"Commission: {context.commission_rate:.4%}")
     log.info(f"Shrinkage: Ledoit-Wolf")
@@ -287,7 +287,7 @@ def calculate_portfolio_drift(context) -> float:
         context: JoinQuant context object
 
     Returns:
-        Maximum drift as a percentage (e.g., 0.05 = 5% drift)
+        Maximum drift as a percentage (e.g., 0.03 = 3% drift)
     """
     if context.target_weights is None:
         # No previous rebalance, must rebalance

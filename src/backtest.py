@@ -32,7 +32,7 @@ class Backtester:
         rebalance_freq: str = 'W-MON',
         lookback: int = 100,
         commission_rate: float = 0.0003,
-        rebalance_threshold: float = 0.05,
+        rebalance_threshold: float = 0.03,
         use_shrinkage: bool = True
     ):
         """
@@ -44,7 +44,7 @@ class Backtester:
             rebalance_freq: Rebalancing frequency ('W-MON' for weekly Monday)
             lookback: Number of days for covariance calculation
             commission_rate: Transaction cost as fraction
-            rebalance_threshold: Max weight drift before rebalancing (default 0.05 = 5%)
+            rebalance_threshold: Max weight drift before rebalancing (default 0.03 = 3%)
                                Set to 0 to always rebalance (v1.0 behavior)
             use_shrinkage: Use Ledoit-Wolf shrinkage (v1.2, default True)
         """

@@ -65,7 +65,7 @@ class Portfolio:
             tradable_etfs: List of ETF tickers to track
             initial_cash: Starting cash balance
             commission_rate: Commission rate (default 0.03%)
-            rebalance_threshold: Drift threshold for rebalancing (default 5%)
+            rebalance_threshold: Drift threshold for rebalancing (default 3%)
             lookback: Covariance lookback period (default 252 days)
         """
         # Core state

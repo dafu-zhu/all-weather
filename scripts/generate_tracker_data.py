@@ -2,9 +2,9 @@
 """
 Generate strategy performance data for the live tracker.
 
-Simulates the All-Weather v2.1 strategy from 2026-01-02 with:
+Simulates the All-Weather v2.0 strategy from 2026-01-02 with:
 - Risk parity weights (Ledoit-Wolf shrinkage)
-- Asymmetric thresholds: 3% trim (profit-taking) / 10% buy (buying dips)
+- 3% symmetric drift threshold
 - Weekly target weight updates (Mondays)
 - 0.03% commission per trade
 

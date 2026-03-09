@@ -47,7 +47,7 @@ strategy_v11 = AllWeatherV1(
     rebalance_freq='W-MON',
     lookback=252,
     commission_rate=0.0003,
-    rebalance_threshold=0.05  # v1.1 default
+    rebalance_threshold=0.03  # 3% symmetric drift
 )
 
 results_v11 = strategy_v11.run_backtest(start_date='2018-01-01', verbose=False)

@@ -39,14 +39,14 @@ VERSION_CONFIGS = {
     ),
     'v1.1': VersionConfig(
         name='v1.1',
-        description='+ Adaptive Rebalancing (5% drift threshold)',
-        rebalance_threshold=0.05,
+        description='+ Adaptive Rebalancing (3% drift threshold)',
+        rebalance_threshold=0.03,
         use_shrinkage=False
     ),
     'v1.2': VersionConfig(
         name='v1.2',
         description='+ Ledoit-Wolf Covariance Shrinkage',
-        rebalance_threshold=0.05,
+        rebalance_threshold=0.03,
         use_shrinkage=True
     )
 }

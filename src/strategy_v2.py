@@ -24,7 +24,7 @@ class AllWeatherV2:
 
     Version History:
     - v1.0: Pure risk parity, always rebalance
-    - v1.1: + Adaptive rebalancing (weekly, 5% drift threshold)
+    - v1.1: + Adaptive rebalancing (weekly, 3% drift threshold)
     - v1.2: + Ledoit-Wolf covariance shrinkage
     - v2.0: + Daily mean-reversion (per-asset drift checking)
     """
