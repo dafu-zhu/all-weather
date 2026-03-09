@@ -2,8 +2,9 @@ name: Update Strategy Tracker
 
 on:
   schedule:
-    # Run at 16:00 Beijing time (08:00 UTC) on weekdays
-    - cron: '0 8 * * 1-5'
+    # Run at 15:53 Beijing time (07:53 UTC) on weekdays
+    # NOTE: Use non-standard minute (:53) to avoid GitHub Actions congestion
+    - cron: '53 7 * * 1-5'
   workflow_dispatch:  # Allow manual trigger
 
 permissions:
