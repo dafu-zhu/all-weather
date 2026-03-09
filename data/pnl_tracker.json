@@ -1,9 +1,8 @@
 {
-  "last_updated": "2026-03-06T08:41:19.252622",
+  "last_updated": "2026-03-09T08:49:50.658480",
   "start_date": "2026-01-02",
-  "strategy_version": "v2.1",
-  "trim_threshold": "3%",
-  "buy_threshold": "10%",
+  "strategy_version": "v2.0",
+  "drift_threshold": "3%",
   "benchmark": "CSI 300",
   "pnl": [
     {
@@ -161,6 +160,10 @@
     {
       "date": "2026-03-06",
       "value": 2.76
+    },
+    {
+      "date": "2026-03-09",
+      "value": 2.05
     }
   ],
   "benchmark_pnl": [
@@ -319,6 +322,10 @@
     {
       "date": "2026-03-06",
       "value": -1.15
+    },
+    {
+      "date": "2026-03-09",
+      "value": -1.96
     }
   ],
   "rebalances": [
@@ -328,9 +335,9 @@
     }
   ],
   "metrics": {
-    "total_return": 2.76,
-    "sharpe": 1.45,
+    "total_return": 2.05,
+    "sharpe": 0.95,
     "max_drawdown": -4.06,
-    "win_rate": 63.2
+    "win_rate": 61.5
   }
 }
