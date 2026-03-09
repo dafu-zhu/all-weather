@@ -87,31 +87,27 @@ def main():
     print(f"Data: {prices.index[0].date()} to {prices.index[-1].date()}")
     print(f"ETFs: {list(prices.columns)}")
 
-    # Test with symmetric 5% threshold (new approach - no asymmetric thresholds)
-    print("\nRunning backtest: 5% symmetric threshold...")
-    results_5pct = run_backtest(prices, drift_threshold=0.05, label="5% Symmetric")
+    # Test thresholds from 1% to 3% in 0.5% steps
+    thresholds = [0.01, 0.015, 0.02, 0.025, 0.03]
+    labels = ['1.0%', '1.5%', '2.0%', '2.5%', '3.0%']
+    all_results = []
 
-    # Also test a few other symmetric thresholds for comparison
-    print("Running backtest: 3% symmetric threshold...")
-    results_3pct = run_backtest(prices, drift_threshold=0.03, label="3% Symmetric")
+    for threshold, label in zip(thresholds, labels):
+        print(f"Running backtest: {label} threshold...")
+        r = run_backtest(prices, drift_threshold=threshold, label=label)
+        all_results.append(r)
 
-    print("Running backtest: 10% symmetric threshold...")
-    results_10pct = run_backtest(prices, drift_threshold=0.10, label="10% Symmetric")
-
-    # Print all results
-    print_results("5% Symmetric Drift Threshold (DEFAULT)", results_5pct)
-    print_results("3% Symmetric Drift Threshold", results_3pct)
-    print_results("10% Symmetric Drift Threshold", results_10pct)
+    # Print individual results
+    for label, r in zip(labels, all_results):
+        print_results(f"{label} Drift Threshold", r)
 
     # Comparison table
-    print(f"\n{'='*70}")
-    print("  COMPARISON TABLE (starting {})".format(START_DATE))
-    print(f"{'='*70}")
-    print(f"{'Metric':<22} {'5% (default)':>14} {'3%':>14} {'10%':>14}")
-    print(f"{'-'*70}")
-
-    for label, r in [("5% (default)", results_5pct), ("3%", results_3pct), ("10%", results_10pct)]:
-        pass  # We'll print row by row below
+    header = f"{'Metric':<22}" + "".join(f"{l:>14}" for l in labels)
+    print(f"\n{'='*len(header)}")
+    print(f"  COMPARISON TABLE (starting {START_DATE})")
+    print(f"{'='*len(header)}")
+    print(header)
+    print(f"{'-'*len(header)}")
 
     rows = [
         ("Final Value", "¥{:,.0f}", 'final_value', None),
@@ -123,8 +119,6 @@ def main():
         ("Win Rate", "{:.1f}%", 'win_rate', 100),
     ]
 
-    all_results = [results_5pct, results_3pct, results_10pct]
-
     for row_label, fmt, key, mult in rows:
         vals = []
         for r in all_results:
@@ -135,14 +129,11 @@ def main():
             if mult:
                 v = v * mult
             vals.append(fmt.format(v))
-        print(f"{row_label:<22} {vals[0]:>14} {vals[1]:>14} {vals[2]:>14}")
+        print(f"{row_label:<22}" + "".join(f"{v:>14}" for v in vals))
 
     # Rebalance counts
-    print(f"{'Daily Rebalances':<22} {results_5pct['daily_rebalance_count']:>14} {results_3pct['daily_rebalance_count']:>14} {results_10pct['daily_rebalance_count']:>14}")
-    print(f"{'Total Trades':<22} {len(results_5pct['daily_trades']):>14} {len(results_3pct['daily_trades']):>14} {len(results_10pct['daily_trades']):>14}")
-
-    print(f"\nConclusion: Symmetric 5% threshold removes overfitting risk from")
-    print(f"asymmetric 3%/10% thresholds while maintaining reasonable rebalancing.")
+    print(f"{'Daily Rebalances':<22}" + "".join(f"{r['daily_rebalance_count']:>14}" for r in all_results))
+    print(f"{'Total Trades':<22}" + "".join(f"{len(r['daily_trades']):>14}" for r in all_results))
 
 
 if __name__ == '__main__':
