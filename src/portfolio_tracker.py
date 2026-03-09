@@ -56,7 +56,7 @@ class Portfolio:
         tradable_etfs: List[str],
         initial_cash: float = 0.0,
         commission_rate: float = 0.0003,
-        rebalance_threshold: float = 0.05,
+        rebalance_threshold: float = 0.03,
         lookback: int = 252
     ):
         """Initialize empty portfolio.

@@ -34,7 +34,7 @@ TRADABLE_ETFS = [
     '513100.SH',  # Nasdaq-100
 ]
 START_DATE = '2026-01-02'
-DRIFT_THRESHOLD = 0.05  # 5% symmetric drift threshold
+DRIFT_THRESHOLD = 0.03  # 3% symmetric drift threshold
 COMMISSION_RATE = 0.0003  # 0.03%
 LOOKBACK = 252
 INITIAL_CAPITAL = 1_000_000

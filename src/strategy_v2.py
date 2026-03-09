@@ -35,7 +35,7 @@ class AllWeatherV2:
         initial_capital: float = 1_000_000,
         lookback: int = 252,
         commission_rate: float = 0.0003,
-        drift_threshold: float = 0.05,
+        drift_threshold: float = 0.03,
         use_shrinkage: bool = True,
     ) -> None:
         """
