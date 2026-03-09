@@ -148,7 +148,7 @@ def test_returns_calculation():
     prices = load_prices('data/etf_prices_7etf.csv')
 
     # Simulate what happens on a specific rebalance date
-    test_date = pd.Timestamp('2018-01-08')  # A Monday
+    test_date = pd.Timestamp('2020-01-06')  # A Monday with sufficient lookback
     lookback = 252
 
     # Get position of test date
