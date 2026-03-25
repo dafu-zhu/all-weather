@@ -60,10 +60,10 @@ def build_portfolio() -> Portfolio:
     # Entry trades from 2026-01-30
     portfolio.trade(qty=700,  price=4.681,   side='buy', day='2026-01-30', etf='510300.SH')
     portfolio.trade(qty=300,  price=8.364,   side='buy', day='2026-01-30', etf='510500.SH')
-    portfolio.trade(qty=1100, price=2.404,   side='buy', day='2026-01-30', etf='513500.SH')
-    portfolio.trade(qty=100,  price=135.096, side='buy', day='2026-01-30', etf='511260.SH')
-    portfolio.trade(qty=300,  price=10.686,  side='buy', day='2026-01-30', etf='518880.SH')
-    portfolio.trade(qty=1100, price=1.843,   side='buy', day='2026-01-30', etf='513100.SH')
+    portfolio.trade(qty=1100, price=2.419,   side='buy', day='2026-01-30', etf='513500.SH')
+    portfolio.trade(qty=100,  price=134.196, side='buy', day='2026-01-30', etf='511260.SH')
+    portfolio.trade(qty=300,  price=11.217,  side='buy', day='2026-01-30', etf='518880.SH')
+    portfolio.trade(qty=1100, price=1.877,   side='buy', day='2026-01-30', etf='513100.SH')
 
     # Dividends received
     portfolio.add_cash(67.26)
