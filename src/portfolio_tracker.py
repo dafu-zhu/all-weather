@@ -144,18 +144,17 @@ class Portfolio:
             if total_cost > self._cash:
                 raise ValueError(f"Insufficient cash: need ¥{total_cost:.2f}, have ¥{self._cash:.2f}")
 
-            # Update average entry price (include commission in cost basis)
-            effective_price = (value + commission) / qty
+            # Update average entry price
             if etf in self._positions:
                 old_qty = self._positions[etf]
                 old_avg = self._entry_prices[etf]
                 new_qty = old_qty + qty
-                new_avg = (old_qty * old_avg + qty * effective_price) / new_qty
+                new_avg = (old_qty * old_avg + qty * price) / new_qty
                 self._entry_prices[etf] = new_avg
                 self._positions[etf] = new_qty
             else:
                 self._positions[etf] = qty
-                self._entry_prices[etf] = effective_price
+                self._entry_prices[etf] = price
 
             self._cash -= total_cost
 
