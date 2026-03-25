@@ -503,10 +503,10 @@ class Portfolio:
             for ticker in self._tradable_etfs:
                 yf_ticker = ticker.replace('.SH', '.SS')
                 ticker_obj = yf.Ticker(yf_ticker)
-                hist = ticker_obj.history(start='2015-01-01', auto_adjust=False)
+                hist = ticker_obj.history(start='2015-01-01', auto_adjust=True)
                 if hist.empty:
                     raise ValueError(f"No data for {ticker}")
-                data[ticker] = hist['Close']  # Use unadjusted close for accurate PnL
+                data[ticker] = hist['Close']  # Use original ticker as column name
 
             self._prices = pd.DataFrame(data)
             self._prices.index = self._prices.index.tz_localize(None)
