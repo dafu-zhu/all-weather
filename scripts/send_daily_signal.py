@@ -65,9 +65,6 @@ def build_portfolio() -> Portfolio:
     portfolio.trade(qty=300,  price=10.686,  side='buy', day='2026-01-30', etf='518880.SH')
     portfolio.trade(qty=1100, price=1.843,   side='buy', day='2026-01-30', etf='513100.SH')
 
-    # Dividends received
-    portfolio.add_cash(67.26)
-
     return portfolio
 
 
