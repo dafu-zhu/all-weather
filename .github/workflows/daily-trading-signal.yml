@@ -1,12 +1,7 @@
 name: Daily Trading Signal Email
 
 on:
-  schedule:
-    # 2:28 PM Beijing time (UTC+8) = 06:28 UTC, weekdays only
-    # NOTE: Use non-standard minute (:28) to avoid GitHub Actions congestion
-    # at :00, :15, :30, :45 marks which can cause skipped runs.
-    - cron: '28 6 * * 1-5'
-  workflow_dispatch:  # Allow manual trigger for testing
+  workflow_dispatch:  # Manual trigger only
 
 jobs:
   send-signal:

@@ -131,8 +131,15 @@ class Portfolio:
             for etf in target_weights.keys()
         }
 
+        # Execute sells before buys so cash is freed up before funding purchases.
+        # Within each group, order is the dict iteration order.
+        ordered_etfs = sorted(
+            target_weights.keys(),
+            key=lambda etf: target_values[etf] - current_values[etf],
+        )
+
         # Execute trades
-        for etf in target_weights.keys():
+        for etf in ordered_etfs:
             price = prices.get(etf)
             if price is None or price <= 0:
                 print(f"Warning: Invalid price for {etf}, skipping")
@@ -160,15 +167,15 @@ class Portfolio:
                 # Buy
                 total_cost = trade_value + commission
                 if total_cost > self.cash:
-                    # Not enough cash, scale down
-                    affordable_value = self.cash - commission
-                    if affordable_value > 0:
-                        shares_to_trade = round(affordable_value / price / 100) * 100
-                        trade_value = shares_to_trade * price
-                        commission = trade_value * self.commission_rate
-                        total_cost = trade_value + commission
-                    else:
+                    # Not enough cash: floor (not round) the affordable lot count
+                    # so total_cost can never exceed cash after scale-down.
+                    affordable_value = self.cash / (1 + self.commission_rate)
+                    shares_to_trade = int(affordable_value // (price * 100)) * 100
+                    if shares_to_trade <= 0:
                         continue
+                    trade_value = shares_to_trade * price
+                    commission = trade_value * self.commission_rate
+                    total_cost = trade_value + commission
 
                 self.cash -= total_cost
                 self.positions[etf] = self.positions.get(etf, 0) + shares_to_trade
