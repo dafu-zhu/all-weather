@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-05-06T10:04:35.488782",
+  "last_updated": "2026-05-07T10:10:08.465468",
   "start_date": "2026-01-02",
   "strategy_version": "v2.0",
   "drift_threshold": "3%",
@@ -316,6 +316,10 @@
     {
       "date": "2026-05-06",
       "value": 3.64
+    },
+    {
+      "date": "2026-05-07",
+      "value": 4.27
     }
   ],
   "benchmark_pnl": [
@@ -630,6 +634,10 @@
     {
       "date": "2026-05-06",
       "value": 3.53
+    },
+    {
+      "date": "2026-05-07",
+      "value": 4.04
     }
   ],
   "rebalances": [
@@ -640,12 +648,16 @@
     {
       "date": "2026-03-31",
       "drift": 3.29
+    },
+    {
+      "date": "2026-05-07",
+      "drift": 3.01
     }
   ],
   "metrics": {
-    "total_return": 3.64,
-    "sharpe": 0.79,
+    "total_return": 4.27,
+    "sharpe": 0.96,
     "max_drawdown": -7.79,
-    "win_rate": 58.4
+    "win_rate": 59.0
   }
 }
